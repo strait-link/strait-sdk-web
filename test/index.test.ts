@@ -9,7 +9,7 @@ const device = {
 };
 
 const config = {
-  appId: 'ten_1',
+  publishableKey: 'bk_pub_test_ten1key01',
   endpoint: 'https://go.example.com/',
   device,
 };
@@ -29,7 +29,7 @@ beforeEach(() => {
 });
 
 describe('resolveDeferredLink', () => {
-  it('POSTs appId + platform + device fields to /v1/match', async () => {
+  it('POSTs publishableKey + platform + device fields to /v1/match', async () => {
     const fetchMock = vi.fn(async () => ({
       ok: true,
       json: async () => ({ matched: true, longUrl: 'https://app/x', matchMethod: 'exact_ext' }),
@@ -42,7 +42,7 @@ describe('resolveDeferredLink', () => {
     const [url, init] = (fetchMock as unknown as ReturnType<typeof vi.fn>).mock.calls[0]!;
     expect(url).toBe('https://go.example.com/v1/match'); // trailing slash trimmed
     const body = JSON.parse((init as RequestInit).body as string);
-    expect(body).toMatchObject({ appId: 'ten_1', platform: 'web', ...device });
+    expect(body).toMatchObject({ publishableKey: 'bk_pub_test_ten1key01', platform: 'web', ...device });
   });
 
   it('runs at most once per browser (no double install rows)', async () => {

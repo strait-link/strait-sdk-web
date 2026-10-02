@@ -4,8 +4,11 @@ export type { DeviceFields } from './device.js';
 export { computeSignature, h32 } from './signature.js';
 
 export interface StraitConfig {
-  /** Your Strait app id (tenant id from the dashboard). */
-  appId: string;
+  /**
+   * Your workspace's publishable key (`bk_pub_live_…`), from Dashboard →
+   * Get started. Safe to ship in apps/websites — never use the secret key here.
+   */
+  publishableKey: string;
   /** The Strait link host, e.g. https://go.yourbrand.com. */
   endpoint: string;
   /** Override device collection (tests / non-browser hosts). */
@@ -47,7 +50,7 @@ export async function resolveDeferredLink(
     const res = await doFetch(`${trimSlash(config.endpoint)}/v1/match`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ appId: config.appId, platform: 'web', ...device }),
+      body: JSON.stringify({ publishableKey: config.publishableKey, platform: 'web', ...device }),
     });
     markRan();
     if (!res.ok) return none;
