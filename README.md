@@ -8,9 +8,11 @@ package runs the same vectors in CI), so deferred match never drifts.
 
 ## Install
 
+<!-- brand:install -->
 ```sh
 npm install @strait/sdk-web
 ```
+<!-- /brand:install -->
 
 ## Use
 

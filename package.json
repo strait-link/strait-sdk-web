@@ -1,19 +1,52 @@
 {
   "name": "@strait/sdk-web",
   "version": "0.1.0",
-  "description": "Strait deep-linking SDK for the web — deferred match + click attribution",
+  "description": "Deep linking for the web: deferred match on first visit and click attribution, in a few lines.",
+  "keywords": [
+    "deep-linking",
+    "deferred-deep-linking",
+    "attribution",
+    "web",
+    "dynamic-links"
+  ],
+  "license": "MIT",
+  "author": "[Company legal name]",
+  "homepage": "https://yourbrand.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bazingga08/strait-sdk-web.git"
+  },
+  "bugs": {
+    "url": "https://github.com/bazingga08/strait-sdk-web/issues"
+  },
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
-  "files": ["dist"],
-  "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
   },
-  "keywords": ["deep-linking", "deferred-deep-linking", "attribution", "strait"],
-  "license": "MIT",
+  "files": [
+    "dist",
+    "CHANGELOG.md"
+  ],
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.json",
+    "prepack": "npm run build",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "brand": "node scripts/brand.mjs"
+  },
   "devDependencies": {
     "typescript": "^5.7.0",
     "vitest": "^4.1.8"
