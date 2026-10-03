@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.0
+
+- **Renamed to Strait** (breaking, clean break). The package is now
+  `@strait/sdk-web`; `StraitConfig`. Publishable keys use
+  the `st_pub_live_` / `st_pub_test_` prefix. The once-per-browser storage key is
+  now `strait_match_done` (the old key is ignored). Shared vectors use the
+  `strait_click` / `strait_link` params. No aliases for the old names are kept.
+
 ## 0.1.0
 
 - `resolveDeferredLink` (deferred match, at most once per browser), device

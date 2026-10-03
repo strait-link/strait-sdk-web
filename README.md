@@ -23,7 +23,7 @@ links — and route to the deferred destination:
 import { resolveDeferredLink } from '@strait/sdk-web';
 
 const result = await resolveDeferredLink({
-  publishableKey: 'bk_pub_live_…',    // Dashboard → Get started (safe in apps; never the secret key)
+  publishableKey: 'st_pub_live_…',    // Dashboard → Get started (safe in apps; never the secret key)
   endpoint: 'https://go.yourbrand.com', // your Strait link host
 });
 

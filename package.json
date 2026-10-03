@@ -1,6 +1,6 @@
 {
   "name": "@strait/sdk-web",
-  "version": "0.1.0",
+  "version": "0.5.0",
   "description": "Deep linking for the web: deferred match on first visit and click attribution, in a few lines.",
   "keywords": [
     "deep-linking",
@@ -10,8 +10,8 @@
     "dynamic-links"
   ],
   "license": "MIT",
-  "author": "[Company legal name]",
-  "homepage": "https://yourbrand.com",
+  "author": "Strait Technologies",
+  "homepage": "https://usestrait.com",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/bazingga08/strait-sdk-web.git"
