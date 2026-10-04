@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.2
+
+- Carries the shared conformance vectors v6 (contract B18). No code changes: B18
+  (strip the query and fragment from open reports and the offline queue) does not
+  apply to the web SDK, which sends no open reports and keeps no queue; it calls
+  `/v1/match` only, with coarse device fields and no URL.
+
 ## 0.5.1
 
 - Installable straight from GitHub: `npm install github:bazingga08/strait-sdk-web#v0.5.1`.

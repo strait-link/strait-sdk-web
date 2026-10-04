@@ -1,6 +1,6 @@
 {
   "name": "@strait/sdk-web",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Deep linking for the web: deferred match on first visit and click attribution, in a few lines.",
   "keywords": [
     "deep-linking",
