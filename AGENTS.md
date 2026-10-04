@@ -10,7 +10,7 @@ For websites and web apps: one call on launch resolves a deferred link (a tap th
 Not on the npm registry yet: install from GitHub (it builds during install).
 
 ```sh
-npm install github:bazingga08/strait-sdk-web#v0.5.2
+npm install github:bazingga08/strait-sdk-web#v0.6.0
 ```
 
 ## Keys (the rule agents get wrong most)
@@ -37,6 +37,17 @@ if (result.matched && result.longUrl) {
 It runs at most once per browser and never throws (on error: `{ matched: false, matchMethod: 'none' }`), so it is
 safe to await at startup. Keep `result.clickId` if you send conversion events later (`POST /v1/event` with the
 publishable key and `clickId`).
+
+## Smart app banner (optional)
+
+```ts
+import { Strait } from '@strait/sdk-web';
+Strait.banner({ link: 'https://acme.strait.link/app', title: 'Acme', subtitle: 'Open this in the app' });
+```
+
+`link` must be a Strait link (that is what carries the destination through an install). The banner shows on
+phones and tablets only, hides inside the customer's own app when you pass `inApp` or `appUserAgent`, and sends
+nothing itself. Don't add tracking to it.
 
 ## Verify
 

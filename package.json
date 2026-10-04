@@ -1,6 +1,6 @@
 {
   "name": "@strait/sdk-web",
-  "version": "0.5.2",
+  "version": "0.6.0",
   "description": "Deep linking for the web: deferred match on first visit and click attribution, in a few lines.",
   "keywords": [
     "deep-linking",
@@ -48,6 +48,7 @@
     "brand": "node scripts/brand.mjs"
   },
   "devDependencies": {
+    "jsdom": "^26.1.0",
     "typescript": "^5.7.0",
     "vitest": "^4.1.8"
   }

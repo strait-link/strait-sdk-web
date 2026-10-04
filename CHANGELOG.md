@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.6.0
+
+- **Smart app banner** for mobile web: `banner({ link, title, subtitle, icon, theme })`,
+  also as `Strait.banner(...)`. A dismissible bar on phones and tablets whose button
+  is a plain link to your Strait link, so the tap opens the app on the right screen,
+  or the store with the destination kept through the install. Hidden on desktop and
+  inside your own app (`inApp`, `appUserAgent`, or a React Native / flutter_inappwebview
+  WebView bridge). Closing it keeps it hidden for `dismissDays` (default 30), stored
+  in `localStorage` under `strait.banner.dismissed`; blocked storage is handled.
+  The banner makes no requests and sets no cookies. Shadow DOM, so your page's CSS
+  and the banner's don't mix. `src/banner.ts` has no imports; `dist/banner.js` is
+  about 2.6 KB gzipped (about 1.8 KB minified), held under 3 KB by a test.
+- New exports: `banner`, `isMobile`, `BANNER_KEY`, `Strait`, types `BannerOptions`, `BannerHandle`.
+- Dev: jsdom for the banner tests.
+
 ## 0.5.2
 
 - Carries the shared conformance vectors v6 (contract B18). No code changes: B18

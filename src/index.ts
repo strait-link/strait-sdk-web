@@ -2,6 +2,8 @@ import { collectDevice, type DeviceFields } from './device.js';
 
 export type { DeviceFields } from './device.js';
 export { computeSignature, h32 } from './signature.js';
+import { banner } from './banner.js';
+export { banner, isMobile, BANNER_KEY, type BannerOptions, type BannerHandle } from './banner.js';
 
 export interface StraitConfig {
   /**
@@ -81,3 +83,6 @@ function markRan(): void {
 function trimSlash(s: string): string {
   return s.replace(/\/+$/, '');
 }
+
+/** Namespace form: `Strait.banner({...})`, `Strait.resolveDeferredLink({...})`. */
+export const Strait = { banner, resolveDeferredLink };
