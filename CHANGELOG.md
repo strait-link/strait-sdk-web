@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.1
+
+- Installable straight from GitHub: `npm install github:bazingga08/strait-sdk-web#v0.5.1`.
+  The build now runs as a `prepare` script (was `prepack`), so npm compiles `dist/`
+  when it installs from a git URL. No code changes.
+
 ## 0.5.0
 
 - **Renamed to Strait** (breaking, clean break). The package is now
