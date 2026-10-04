@@ -17,7 +17,7 @@ npm install @strait/sdk-web
 Not on the npm registry yet. Until it is, install from GitHub (npm builds it on install):
 
 ```sh
-npm install github:bazingga08/strait-sdk-web#v0.5.1
+npm install github:bazingga08/strait-sdk-web#v0.5.2
 ```
 
 ## Use
