@@ -23,6 +23,8 @@ export interface MatchResult {
   longUrl?: string;
   linkId?: string;
   matchMethod: 'exact_ext' | 'exact_core' | 'none';
+  /** When matched (engine B16): the id of the tap this visit came from; pass it as `clickId` with conversion events. */
+  clickId?: string;
 }
 
 const DONE_KEY = 'strait_match_done';
