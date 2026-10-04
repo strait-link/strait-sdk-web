@@ -2,8 +2,8 @@
 
 Deep linking for the web — deferred match + attribution, in a few lines.
 
-Part of [Strait](../). The device signature is kept in lockstep with the server
-and every other SDK via [`shared-spec`](../shared-spec) golden vectors (this
+Part of [Strait](https://straitlink.in). The device signature is kept in lockstep with the server
+and every other SDK via shared golden vectors (this
 package runs the same vectors in CI), so deferred match never drifts.
 
 ## Install
@@ -30,7 +30,7 @@ import { resolveDeferredLink } from '@strait/sdk-web';
 
 const result = await resolveDeferredLink({
   publishableKey: 'st_pub_live_…',    // Dashboard → Get started (safe in apps; never the secret key)
-  endpoint: 'https://go.yourbrand.com', // your Strait link host
+  endpoint: 'https://<your-handle>.strait.link', // your workspace's link domain
 });
 
 if (result.matched && result.longUrl) {
