@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Referral codes (preview; shared-spec/proposals/referral-code.md, B21): a matched
+  `resolveDeferredLink` result carries `referralCode` only when the engine sent a valid
+  one (an invalid or unmatched code is dropped). New export `replyReferralCode`.
+
 ## 0.6.0
 
 - **Smart app banner** for mobile web: `banner({ link, title, subtitle, icon, theme })`,

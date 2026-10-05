@@ -42,6 +42,9 @@ if (result.matched && result.longUrl) {
 server-side). It never throws — on any error it resolves to
 `{ matched: false, matchMethod: 'none' }`, so it's safe to await on startup.
 
+When the matched tap carried a referral code, the result also has `referralCode`
+(preview, not switched on yet; contract B21). It is absent otherwise.
+
 ### What it sends
 
 The SDK collects coarse, privacy-clean device fields (screen width, pixel ratio,
