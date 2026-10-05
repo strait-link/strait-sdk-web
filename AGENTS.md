@@ -1,4 +1,4 @@
-# AGENTS.md: Strait web SDK (@strait/sdk-web)
+# AGENTS.md: Strait web SDK (@straitlink/web)
 
 Instructions for AI coding agents (Claude Code, Cursor, Codex, Copilot…) that add this SDK to an app or work on
 this repo. Humans: see README.md.
@@ -22,7 +22,7 @@ npm install github:bazingga08/strait-sdk-web#v0.6.0
 ## Receive links: the one pattern
 
 ```ts
-import { resolveDeferredLink } from '@strait/sdk-web';
+import { resolveDeferredLink } from '@straitlink/web';
 
 const result = await resolveDeferredLink({
   publishableKey: 'st_pub_live_…',     // never the secret key
@@ -41,7 +41,7 @@ publishable key and `clickId`).
 ## Smart app banner (optional)
 
 ```ts
-import { Strait } from '@strait/sdk-web';
+import { Strait } from '@straitlink/web';
 Strait.banner({ link: 'https://acme.strait.link/app', title: 'Acme', subtitle: 'Open this in the app' });
 ```
 

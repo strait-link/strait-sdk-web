@@ -1,4 +1,4 @@
-# @strait/sdk-web
+# @straitlink/web
 
 Deep linking for the web — deferred match + attribution, in a few lines.
 
@@ -10,7 +10,7 @@ package runs the same vectors in CI), so deferred match never drifts.
 
 <!-- brand:install -->
 ```sh
-npm install @strait/sdk-web
+npm install @straitlink/web
 ```
 <!-- /brand:install -->
 
@@ -26,7 +26,7 @@ On first launch, ask Strait whether this device recently clicked one of your
 links — and route to the deferred destination:
 
 ```ts
-import { resolveDeferredLink } from '@strait/sdk-web';
+import { resolveDeferredLink } from '@straitlink/web';
 
 const result = await resolveDeferredLink({
   publishableKey: 'st_pub_live_…',    // Dashboard → Get started (safe in apps; never the secret key)
@@ -59,7 +59,7 @@ Strait link, so the tap opens your app on the right screen, or the store with th
 destination kept through the install.
 
 ```ts
-import { Strait } from '@strait/sdk-web';
+import { Strait } from '@straitlink/web';
 
 Strait.banner({
   link: 'https://<your-handle>.strait.link/app', // a Strait link (opened as is)

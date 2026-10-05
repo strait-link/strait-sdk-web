@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Package renamed** to `@straitlink/web` (npm scope `@straitlink`; it was `@strait/sdk-web`, never
+  published to npm). Update imports: `from '@straitlink/web'`. The GitHub repo name is unchanged.
 - Referral codes (preview; shared-spec/proposals/referral-code.md, B21): a matched
   `resolveDeferredLink` result carries `referralCode` only when the engine sent a valid
   one (an invalid or unmatched code is dropped). New export `replyReferralCode`.
