@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { resolveDeferredLink } from '../src/index.js';
+import { replyReferralCode, resolveDeferredLink } from '../src/index.js';
 
 const device = {
   screenWidth: 393,
@@ -82,5 +82,27 @@ describe('resolveDeferredLink', () => {
     const fetchMock = vi.fn(async () => ({ ok: false, json: async () => ({}) })) as unknown as typeof fetch;
     const res = await resolveDeferredLink({ ...config, fetch: fetchMock }, { force: true });
     expect(res.matched).toBe(false);
+  });
+});
+
+describe('referralCode (contract B21, preview)', () => {
+  const reply = (body: unknown) => vi.fn(async () => ({ ok: true, json: async () => body })) as unknown as typeof fetch;
+  const matched = { matched: true, longUrl: 'https://shop.example/invite', linkId: 'lnk_42', matchMethod: 'exact_ext' };
+
+  it('passes a valid code through exactly', async () => {
+    const r = await resolveDeferredLink({ ...config, fetch: reply({ ...matched, referralCode: 'ASHA42' }) }, { force: true });
+    expect(r.referralCode).toBe('ASHA42');
+  });
+
+  it('drops a missing, invalid or unmatched code', async () => {
+    for (const body of [matched, { ...matched, referralCode: 'not valid' }, { ...matched, referralCode: null }, { matched: false, matchMethod: 'none', referralCode: 'ASHA42' }]) {
+      const r = await resolveDeferredLink({ ...config, fetch: reply(body) }, { force: true });
+      expect(r).not.toHaveProperty('referralCode');
+    }
+  });
+
+  it('replyReferralCode accepts 1-64 letters, digits, - or _', () => {
+    for (const c of ['ASHA42', 'a', 'user_12-b', 'x'.repeat(64)]) expect(replyReferralCode(c)).toBe(c);
+    for (const c of [undefined, null, '', 'x'.repeat(65), 'a b', 'me@example.com', '+919999', 'ü', 42]) expect(replyReferralCode(c)).toBeNull();
   });
 });

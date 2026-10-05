@@ -27,6 +27,20 @@ export interface MatchResult {
   matchMethod: 'exact_ext' | 'exact_core' | 'none';
   /** When matched (engine B16): the id of the tap this visit came from; pass it as `clickId` with conversion events. */
   clickId?: string;
+  /**
+   * When matched and the tap carried a referral code (the tap's `?strait_ref=`,
+   * else the link's `referralCode`). Referrals are a preview, not switched on
+   * yet (contract B21). Absent otherwise.
+   */
+  referralCode?: string;
+}
+
+/** A referral code as the engine accepts it: 1–64 letters, digits, - or _ (contract B21, proposal). */
+const REFERRAL_CODE = /^[A-Za-z0-9_-]{1,64}$/;
+
+/** The referral code in a matched reply, kept exactly as sent, or null when absent or not a valid code. */
+export function replyReferralCode(reply: unknown): string | null {
+  return typeof reply === 'string' && REFERRAL_CODE.test(reply) ? reply : null;
 }
 
 const DONE_KEY = 'strait_match_done';
@@ -58,7 +72,11 @@ export async function resolveDeferredLink(
     });
     markRan();
     if (!res.ok) return none;
-    return (await res.json()) as MatchResult;
+    const json = (await res.json()) as MatchResult;
+    const code = json.matched === true ? replyReferralCode(json.referralCode) : null;
+    if (code) json.referralCode = code;
+    else delete json.referralCode;
+    return json;
   } catch {
     return none;
   }
