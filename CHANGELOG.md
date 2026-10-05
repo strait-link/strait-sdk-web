@@ -2,14 +2,18 @@
 
 ## Unreleased
 
+## 0.6.1
+
 - **Package renamed** to `@straitlink/web` (npm scope `@straitlink`; it was `@strait/sdk-web`, never
   published to npm). Update imports: `from '@straitlink/web'`. The GitHub repo name is unchanged.
-- Referral codes (preview; shared-spec/proposals/referral-code.md, B21): a matched
-  `resolveDeferredLink` result carries `referralCode` only when the engine sent a valid
-  one (an invalid or unmatched code is dropped). New export `replyReferralCode`.
+  The code is otherwise identical to 0.6.0. Tag v0.6.0 (cut before the rename) still carries the old
+  name `@strait/sdk-web` in its package.json, so install v0.6.1 or later for the new import path.
 
 ## 0.6.0
 
+- Referral codes (preview; shared-spec/proposals/referral-code.md, B21): a matched
+  `resolveDeferredLink` result carries `referralCode` only when the engine sent a valid
+  one (an invalid or unmatched code is dropped). New export `replyReferralCode`.
 - **Smart app banner** for mobile web: `banner({ link, title, subtitle, icon, theme })`,
   also as `Strait.banner(...)`. A dismissible bar on phones and tablets whose button
   is a plain link to your Strait link, so the tap opens the app on the right screen,

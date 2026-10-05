@@ -1,6 +1,6 @@
 {
   "name": "@straitlink/web",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Deep linking for the web: deferred match on first visit and click attribution, in a few lines.",
   "keywords": [
     "deep-linking",

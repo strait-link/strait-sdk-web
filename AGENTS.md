@@ -10,7 +10,7 @@ For websites and web apps: one call on launch resolves a deferred link (a tap th
 Not on the npm registry yet: install from GitHub (it builds during install).
 
 ```sh
-npm install github:bazingga08/strait-sdk-web#v0.6.0
+npm install github:bazingga08/strait-sdk-web#v0.6.1
 ```
 
 ## Keys (the rule agents get wrong most)
