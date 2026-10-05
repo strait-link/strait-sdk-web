@@ -21,7 +21,7 @@
   inside your own app (`inApp`, `appUserAgent`, or a React Native / flutter_inappwebview
   WebView bridge). Closing it keeps it hidden for `dismissDays` (default 30), stored
   in `localStorage` under `strait.banner.dismissed`; blocked storage is handled.
-  The banner makes no requests and sets no cookies. Shadow DOM, so your page's CSS
+  The banner makes no requests of its own (apart from loading your `icon`) and sets no cookies. Shadow DOM, so your page's CSS
   and the banner's don't mix. `src/banner.ts` has no imports; `dist/banner.js` is
   about 2.6 KB gzipped (about 1.8 KB minified), held under 3 KB by a test.
 - New exports: `banner`, `isMobile`, `BANNER_KEY`, `Strait`, types `BannerOptions`, `BannerHandle`.

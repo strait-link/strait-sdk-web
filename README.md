@@ -3,8 +3,8 @@
 Deep linking for the web — deferred match + attribution, in a few lines.
 
 Part of [Strait](https://straitlink.in). The device signature is kept in lockstep with the server
-and every other SDK via shared golden vectors (this
-package runs the same vectors in CI), so deferred match never drifts.
+and the other app SDKs via shared golden vectors (this
+package runs the same vectors in CI), so a change that would make them drift fails the tests.
 
 ## Install
 
@@ -39,16 +39,20 @@ if (result.matched && result.longUrl) {
 ```
 
 `resolveDeferredLink` runs **at most once per browser** (it records one install
-server-side). It never throws — on any error it resolves to
-`{ matched: false, matchMethod: 'none' }`, so it's safe to await on startup.
+server-side, and remembers that in `localStorage`; where storage is blocked it can
+run again on a later visit). In a browser it doesn't throw: on any network or
+server error it resolves to `{ matched: false, matchMethod: 'none' }`, so it's safe
+to await on startup. Outside a browser (server rendering), pass `device` or don't
+call it, because it reads `window.screen`.
 
 When the matched tap carried a referral code, the result also has `referralCode`
 (preview, not switched on yet; contract B21). It is absent otherwise.
 
 ### What it sends
 
-The SDK collects coarse, privacy-clean device fields (screen width, pixel ratio,
-2-char language, timezone) and posts them to `/v1/match`. The **server** adds the
+The SDK collects coarse device fields (screen width, pixel ratio, the browser's
+language tag such as `en-US`, timezone) and posts them to `/v1/match`; the server
+uses only the first two letters of the language. The **server** adds the
 IP it observes and computes the match signature — the client never sees or sends
 an IP, and the signature is never used as a cross-app identity.
 
@@ -72,8 +76,9 @@ Strait.banner({
 
 It shows only on phones and tablets, never inside your own app (pass `inApp` or
 `appUserAgent`), and stays hidden for 30 days after the visitor closes it
-(`dismissDays`). It makes no requests and sets no cookies: the only thing recorded
-is the tap on the link. `dist/banner.js` has no imports, so you can also copy it
+(`dismissDays`). It makes no requests of its own (apart from loading your `icon`)
+and sets no cookies; closing it stores the time in `localStorage`. The only thing
+recorded is the tap on the link. `dist/banner.js` has no imports, so you can also copy it
 next to your pages and load it with `<script type="module">`.
 
 ## API
