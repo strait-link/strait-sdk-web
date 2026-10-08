@@ -1,6 +1,11 @@
-# @straitlink/web
+# Strait SDK for the web
 
-Deep linking for the web — deferred match + attribution, in a few lines.
+`@straitlink/web`
+
+> **Availability:** Web: Live · SDK: Beta (installed from GitHub; not on npm yet).
+> [Platform status](https://straitlink.in/platform-status/) · [Docs](https://straitlink.in/docs/)
+
+Deep linking for the web: deferred match + attribution, in a few lines.
 
 Part of [Strait](https://straitlink.in). The device signature is kept in lockstep with the server
 and every other SDK via shared golden vectors (this
