@@ -26,7 +26,7 @@ import { resolveDeferredLink } from '@straitlink/web';
 
 const result = await resolveDeferredLink({
   publishableKey: 'st_pub_live_…',     // never the secret key
-  endpoint: 'https://acme.strait.link',    // the workspace's link domain
+  endpoint: 'https://<your-handle>.strait.link', // the workspace's link domain (ask the human)
 });
 if (result.matched && result.longUrl) {
   const url = new URL(result.longUrl);
@@ -42,14 +42,37 @@ publishable key and `clickId`).
 
 ```ts
 import { Strait } from '@straitlink/web';
-Strait.banner({ link: 'https://acme.strait.link/app', title: 'Acme', subtitle: 'Open this in the app' });
+Strait.banner({ link: 'https://<your-handle>.strait.link/app', title: 'Hilltop Shoes', subtitle: 'Open this in the app' });
 ```
 
 `link` must be a Strait link (that is what carries the destination through an install). The banner shows on
 phones and tablets only, hides inside the customer's own app when you pass `inApp` or `appUserAgent`, and sends
-nothing itself. Don't add tracking to it.
+nothing itself. Don't add tracking to it. (Hilltop Shoes is a made-up shop used in examples; use the
+customer's own app name.)
+
+## Stop and ask the human
+
+These steps need a person. Don't guess, invent values or work around them; stop and ask:
+
+- **Account and keys.** Creating the workspace (sign up at app.straitlink.in) and copying the publishable key.
+  There is no signup API. Never ask for, accept or paste the secret key into web code.
+- **The workspace's link domain** (`https://<handle>.strait.link`, or a verified custom domain). Don't make one up.
+- **Dashboard settings** (Android package name and SHA-256, Apple Team ID, custom scheme, link destinations).
+  There is no API for app settings.
+- **Real-device taps.** A deferred match needs a tap on a real phone, then a visit to the site.
+- **Anything you would publish** (`npm publish`, a deploy, a tag): this package is not on npm yet.
 
 ## Verify
+
+Without a phone first, ask the engine what a tap on the link would do. It records nothing, sends no webhooks
+and isn't billed:
+
+```sh
+curl "https://strait.link/v1/simulate?url=https%3A%2F%2F<your-handle>.strait.link%2Fapp&ua=android&publishableKey=st_pub_live_…"
+```
+
+Check `decision`, `sentTo`, `location` and the plain-English `reason`. Change the link in the dashboard and
+ask again until it is right. Then prove it for real:
 
 1. With a link whose destination is your site, tap it on a phone, then open the site: `resolveDeferredLink`
    returns `matched: true` and the destination.

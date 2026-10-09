@@ -11,7 +11,7 @@ const ANDROID = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KH
 const DESKTOP = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Safari/537.36';
 // From the repo root (vitest's cwd): under jsdom, import.meta.url isn't a file: URL.
 const SRC = join(process.cwd(), 'src/banner.ts');
-const LINK = 'https://acme.strait.link/app';
+const LINK = 'https://hilltop.strait.link/app';
 
 function setUA(ua: string, touch = 0) {
   vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(ua);
@@ -31,7 +31,7 @@ const store = new MemoryStorage();
 Object.defineProperty(globalThis, 'localStorage', { value: store, configurable: true, writable: true });
 
 const shadow = (h: { element: HTMLElement }) => h.element.shadowRoot!;
-const opts = { link: LINK, title: 'Acme', subtitle: 'Faster checkout in the app' };
+const opts = { link: LINK, title: 'Hilltop Shoes', subtitle: 'Faster checkout in the app' };
 
 beforeEach(() => {
   document.body.innerHTML = '<main>page</main>';
@@ -69,8 +69,8 @@ describe('banner: when it shows', () => {
   it('hides inside your own app: inApp flag or function, appUserAgent token, React Native WebView bridge', () => {
     expect(banner({ ...opts, inApp: true })).toBeNull();
     expect(banner({ ...opts, inApp: () => true })).toBeNull();
-    setUA(`${IPHONE} AcmeApp/3.2`);
-    expect(banner({ ...opts, appUserAgent: 'AcmeApp/' })).toBeNull();
+    setUA(`${IPHONE} HilltopShoesApp/3.2`);
+    expect(banner({ ...opts, appUserAgent: 'HilltopShoesApp/' })).toBeNull();
     setUA(IPHONE);
     (window as any).ReactNativeWebView = { postMessage() {} };
     expect(banner(opts)).toBeNull();
@@ -80,7 +80,7 @@ describe('banner: when it shows', () => {
 
   it('shows in in-app browsers like Instagram, which are not your app', () => {
     setUA(`${IPHONE} Instagram 350.0.0.0`);
-    expect(banner({ ...opts, appUserAgent: 'AcmeApp/' })).not.toBeNull();
+    expect(banner({ ...opts, appUserAgent: 'HilltopShoesApp/' })).not.toBeNull();
   });
 
   it('never shows twice on one page', () => {
@@ -100,16 +100,16 @@ describe('banner: content and accessibility', () => {
   it('is a labelled landmark with a real link to the Strait link, unchanged', () => {
     const h = banner({ ...opts, link: `${LINK}?utm_source=web` })!;
     const aside = shadow(h).querySelector('aside')!;
-    expect(aside.getAttribute('aria-label')).toBe('Acme app');
+    expect(aside.getAttribute('aria-label')).toBe('Hilltop Shoes app');
     const a = shadow(h).querySelector('a')!;
     expect(a.getAttribute('href')).toBe(`${LINK}?utm_source=web`);
     expect(a.textContent).toBe('Open in app');
-    expect(shadow(h).querySelector('b')!.textContent).toBe('Acme');
+    expect(shadow(h).querySelector('b')!.textContent).toBe('Hilltop Shoes');
     expect(shadow(h).querySelector('span')!.textContent).toBe('Faster checkout in the app');
   });
 
   it('close is a labelled button; the icon is decorative', () => {
-    const h = banner({ ...opts, icon: 'https://acme.example/icon.png' })!;
+    const h = banner({ ...opts, icon: 'https://cdn.hilltop.example/icon.png' })!;
     const btn = shadow(h).querySelector('button')!;
     expect(btn.getAttribute('type')).toBe('button');
     expect(btn.getAttribute('aria-label')).toBe('Close');

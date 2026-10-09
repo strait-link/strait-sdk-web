@@ -68,7 +68,7 @@ import { Strait } from '@straitlink/web';
 
 Strait.banner({
   link: 'https://<your-handle>.strait.link/app', // a Strait link (opened as is)
-  title: 'Acme',
+  title: 'Hilltop Shoes',
   subtitle: 'Track your order in the app',
   icon: '/icons/app-192.png',
   theme: 'auto',                                  // 'light' | 'dark' | 'auto'
@@ -89,3 +89,9 @@ next to your pages and load it with `<script type="module">`.
 | `banner(options)` / `Strait.banner(options)` | smart app banner for mobile web; returns `{ element, dismiss, remove }` or `null` when not shown |
 | `computeSignature(inputs)` | the canonical signature (advanced/testing) |
 | `h32(s)` | the canonical hash (advanced/testing) |
+
+## Support
+
+Questions or a bug: support@straitlink.in (replies within 1 working day, IST) or open a
+[GitHub issue](https://github.com/bazingga08/strait-sdk-web/issues). Security reports: security@straitlink.in
+(see [SECURITY.md](SECURITY.md)). Docs: https://straitlink.in/docs/sdks/web/
