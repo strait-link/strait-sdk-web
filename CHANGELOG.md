@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Test copy of the shared conformance vectors updated to v8 (B22 page.link `classifyUrl` cases).
+  The web SDK carries the vectors only; no code change, no version bump.
+
 ## 0.6.1
 
 - **Package renamed** to `@straitlink/web` (npm scope `@straitlink`; it was `@strait/sdk-web`, never
