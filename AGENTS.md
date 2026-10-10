@@ -56,7 +56,7 @@ These steps need a person. Don't guess, invent values or work around them; stop 
 
 - **Account and keys.** Creating the workspace (sign up at app.straitlink.in) and copying the publishable key.
   There is no signup API. Never ask for, accept or paste the secret key into web code.
-- **The workspace's link domain** (`https://<handle>.strait.link`, or a verified custom domain). Don't make one up.
+- **The workspace's link domain** (`https://<handle>.strait.link`; custom domains are coming soon). Don't make one up.
 - **Dashboard settings** (Android package name and SHA-256, Apple Team ID, custom scheme, link destinations).
   There is no API for app settings.
 - **Real-device taps.** A deferred match needs a tap on a real phone, then a visit to the site.
@@ -89,7 +89,8 @@ ask again until it is right. Then prove it for real:
   `shared-spec/scripts/rename-brand.sh` (all SDKs) or `node scripts/brand.mjs --write`.
 - Wire names are part of the contract: query params `strait_click` / `strait_link`, storage keys `strait.*`,
   headers `X-Strait-*`. Don't rename them.
-- Brand: Strait (never "Straight"). Don't write superlatives ("best", "cheapest") or speed / match-rate numbers in
+- Brand: Strait (the company name is never spelt "Straight"). "Straight" and "Stamped" name the two halves of
+  the product (the tap goes straight to the exact screen; every tap is recorded); the tagline is "Straight to the screen. On the record." Don't write superlatives ("best", "cheapest") or speed / match-rate numbers in
   docs or comments. iPhone install matching is in beta.
 
 ## More

@@ -7,7 +7,7 @@
 
 Deep linking for the web: deferred match + attribution, in a few lines.
 
-Part of [Strait](https://straitlink.in). The device signature is kept in lockstep with the server
+Part of [Strait](https://straitlink.in): straight to the screen, on the record. The device signature is kept in lockstep with the server
 and every other SDK via shared golden vectors (this
 package runs the same vectors in CI), so deferred match never drifts.
 
@@ -92,6 +92,6 @@ next to your pages and load it with `<script type="module">`.
 
 ## Support
 
-Questions or a bug: support@straitlink.in (replies within 1 working day, IST) or open a
+Questions or a bug? Talk to the Strait team: support@straitlink.in (replies within 1 working day) or open a
 [GitHub issue](https://github.com/bazingga08/strait-sdk-web/issues). Security reports: security@straitlink.in
 (see [SECURITY.md](SECURITY.md)). Docs: https://straitlink.in/docs/sdks/web/
