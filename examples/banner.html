@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Smart banner preview</title>
+<meta name="robots" content="noindex">
+<!--
+  Preview of the smart app banner (sample data: Hilltop Shoes is a made-up shop).
+  Build first (npm run build), then serve the repo root, for example:
+    npx serve .   or   python3 -m http.server
+  and open /examples/banner.html. Add ?theme=light|dark|auto, ?position=bottom or
+  ?accent=%23123456 to try the options. It is shown on desktop too (force: true).
+-->
+<style>
+  :root { color-scheme: light dark; --bg: #F7F5F1; --card: #FFFFFF; --ink: #0F0D0A; --muted: #423B33; --line: #E8E4DD; --well: #EFECE6; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #0E0C0A; --card: #191613; --ink: #F6F3EE; --muted: #B8B0A5; --line: #2B2621; --well: #221E1A; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+  main { max-width: 560px; margin: 0 auto; padding: 24px 16px 96px; }
+  .tag { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 4px; background: var(--well); color: var(--muted); font: 500 12px/1 'JetBrains Mono', ui-monospace, Menlo, monospace; letter-spacing: .06em; text-transform: uppercase; }
+  h1 { margin: 12px 0 4px; font: 700 28px/1.1 'Bricolage Grotesque', Inter, system-ui, sans-serif; letter-spacing: -.02em; }
+  p { margin: 0 0 16px; color: var(--muted); }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .item { border: 1px solid var(--line); border-radius: 12px; background: var(--card); padding: 12px; }
+  .ph { aspect-ratio: 4 / 3; border-radius: 8px; background: var(--well); margin-bottom: 8px; }
+  .item b { display: block; font-size: 14px; }
+  .item span { font-size: 13px; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <span class="tag">Sample</span>
+  <h1>Hilltop Shoes</h1>
+  <p>A made-up shop, to preview the banner your visitors see on a phone.</p>
+  <div class="grid">
+    <div class="item"><div class="ph"></div><b>Trail Runner</b><span>Size 9 · $49.99</span></div>
+    <div class="item"><div class="ph"></div><b>Ridge Hiker</b><span>Size 10 · $64.00</span></div>
+    <div class="item"><div class="ph"></div><b>Summit Mid</b><span>Size 8 · $72.00</span></div>
+    <div class="item"><div class="ph"></div><b>Creek Sandal</b><span>Size 9 · $29.00</span></div>
+  </div>
+</main>
+<script type="module">
+  import { banner } from '../dist/banner.js';
+  const q = new URLSearchParams(location.search);
+  // A sample icon: the customer's own artwork goes here (40 x 40, shown with rounded corners).
+  const icon = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80"><rect width="80" height="80" fill="#3E3831"/><path d="M14 56h52l-4-9-14-3-6-12h-8l-4 10-12 4z" fill="#F7F2E8"/></svg>');
+  banner({
+    link: 'https://hilltop.strait.link/app',
+    title: 'Hilltop Shoes',
+    subtitle: 'Track your order in the app',
+    icon,
+    theme: q.get('theme') || 'auto',
+    position: q.get('position') === 'bottom' ? 'bottom' : 'top',
+    accent: q.get('accent') || undefined,
+    force: true,
+  });
+</script>
+</body>
+</html>

@@ -1,15 +1,50 @@
-# Strait SDK for the web
+<!-- Header: the same in every Strait SDK README (design system v5). -->
+<p align="center">
+  <a href="https://straitlink.in">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset=".github/assets/strait-lockup-dark.svg">
+      <img src=".github/assets/strait-lockup.svg" alt="Strait" width="160" height="53">
+    </picture>
+  </a>
+</p>
+
+<h1 align="center">Strait SDK for the web</h1>
+
+<p align="center"><strong>Straight to the screen. On the record.</strong><br>
+A tap opens the exact screen, and every link open and install is recorded in your Strait dashboard.</p>
+
+<p align="center">
+  <a href="https://github.com/bazingga08/strait-sdk-web/tags"><img alt="Latest version" src="https://img.shields.io/github/v/tag/bazingga08/strait-sdk-web?sort=semver&label=version&style=flat-square&labelColor=0F0D0A&color=423B33"></a>
+  <a href="https://straitlink.in/platform-status/"><img alt="SDK: Beta" src="https://img.shields.io/badge/SDK-beta-423B33?style=flat-square&labelColor=0F0D0A"></a>
+  <a href="https://github.com/bazingga08/strait-sdk-web/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/bazingga08/strait-sdk-web/ci.yml?branch=main&label=CI&style=flat-square&labelColor=0F0D0A&color=423B33"></a>
+  <a href="LICENSE"><img alt="Licence: MIT" src="https://img.shields.io/badge/licence-MIT-423B33?style=flat-square&labelColor=0F0D0A"></a>
+</p>
+
+<p align="center">
+  <a href="https://straitlink.in/docs/sdks/web/">Docs</a> ·
+  <a href="https://straitlink.in/platform-status/">Platform status</a> ·
+  <a href="CHANGELOG.md">Changelog</a> ·
+  <a href="#docs-and-support">Talk to the Strait team</a>
+</p>
 
 `@straitlink/web`
 
-> **Availability:** Web: Live · SDK: Beta (installed from GitHub; not on npm yet).
-> [Platform status](https://straitlink.in/platform-status/) · [Docs](https://straitlink.in/docs/)
-
 Deep linking for the web: deferred match + attribution, in a few lines.
 
-Part of [Strait](https://straitlink.in): straight to the screen, on the record. The device signature is kept in lockstep with the server
-and every other SDK via shared golden vectors (this
-package runs the same vectors in CI), so deferred match never drifts.
+The device signature is kept in lockstep with the server and every other SDK via shared golden
+vectors (this package runs the same vectors in CI), so deferred match never drifts.
+
+## Platform features
+
+| Feature | Status | Notes |
+|---|---|---|
+| Web links open the right page | ● Live | Handled by Strait; nothing to install. |
+| Deferred match on first visit (`resolveDeferredLink`) | ◐ Beta | At most once per browser. Never throws. |
+| Smart app banner for mobile web (`banner`) | ◐ Beta | Styled with the Strait design system, light and dark. No requests, no cookies. [Docs](https://straitlink.in/docs/smart-banner/) |
+| iPhone install matching | ◐ Beta | Runs in your app through the native SDKs, not in this package. Your choice in Dashboard → Settings → iPhone installs: device matching, paste handoff, both or neither, read from Strait at runtime. Device matching is off by default. iPhone matches are labelled Estimated until measured. |
+| Published on npm | – Not yet | Install from GitHub until it is. |
+
+● Live · ◐ Beta · ○ Planned · – Not yet. The same words as the [platform status](https://straitlink.in/platform-status/) page.
 
 ## Install
 
@@ -81,17 +116,43 @@ It shows only on phones and tablets, never inside your own app (pass `inApp` or
 is the tap on the link. `dist/banner.js` has no imports, so you can also copy it
 next to your pages and load it with `<script type="module">`.
 
+### How it looks
+
+The banner follows the Strait design system (v5) in both themes: a warm white bar on light pages and a
+warm near-black bar (`#191613`) on dark ones, one orange button (`#FF6A13` with ink text, 6.8:1), a
+2 px focus ring, 44 px tap targets on touch screens and no motion when the visitor asks for reduced
+motion. `theme: 'auto'` follows the visitor's light / dark setting.
+
+To match your own brand, pass `accent` (your button colour). The text on it is picked for contrast
+(ink or white) unless you pass `accentText`. `tokens` exports the colours the banner uses, so a page
+can match them:
+
+```ts
+import { tokens } from '@straitlink/web';
+tokens.colors.dark.surface; // '#191613'
+```
+
+Preview every option locally: `npm run build`, serve the repo root, open `examples/banner.html`
+(add `?theme=dark`, `?position=bottom` or `?accent=%234A2C1D`).
+
+| Light | Dark |
+|---|---|
+| ![Smart app banner, light theme](.github/assets/banner-light.png) | ![Smart app banner, dark theme](.github/assets/banner-dark.png) |
+
 ## API
 
 | export | purpose |
 |--------|---------|
 | `resolveDeferredLink(config, opts?)` | the one call you need on launch |
 | `banner(options)` / `Strait.banner(options)` | smart app banner for mobile web; returns `{ element, dismiss, remove }` or `null` when not shown |
+| `readableOn(colour)` | ink or white, whichever reads better on a button colour (used for `accent`) |
+| `tokens` | the Strait design tokens (v5) the banner uses: `colors.light` / `colors.dark`, `fonts`, `radius`, `shadows`, `motion` |
 | `computeSignature(inputs)` | the canonical signature (advanced/testing) |
 | `h32(s)` | the canonical hash (advanced/testing) |
 
-## Support
+## Docs and support
 
-Questions or a bug? Talk to the Strait team: support@straitlink.in (replies within 1 working day) or open a
-[GitHub issue](https://github.com/bazingga08/strait-sdk-web/issues). Security reports: security@straitlink.in
-(see [SECURITY.md](SECURITY.md)). Docs: https://straitlink.in/docs/sdks/web/
+- **Docs:** [straitlink.in/docs/sdks/web/](https://straitlink.in/docs/sdks/web/) · [platform status](https://straitlink.in/platform-status/) · [troubleshooting](https://straitlink.in/docs/troubleshooting/)
+- **Talk to the Strait team:** [support@straitlink.in](mailto:support@straitlink.in) (replies within 1 working day, IST) or call +91 81218 61890.
+- **Bugs and feature requests:** [open an issue](https://github.com/bazingga08/strait-sdk-web/issues) on this repo.
+- **Security:** never in a public issue. Write to security@straitlink.in (see [SECURITY.md](SECURITY.md)).

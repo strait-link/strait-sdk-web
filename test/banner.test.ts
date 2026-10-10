@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import ts from 'typescript';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { banner, BANNER_KEY, isMobile, Strait } from '../src/index';
+import { banner, BANNER_KEY, isMobile, readableOn, Strait, tokens } from '../src/index';
 
 const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
 const ANDROID = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36';
@@ -127,9 +127,11 @@ describe('banner: content and accessibility', () => {
     const h = banner({ ...opts, button: 'Get the app', accent: '#0a7', accentText: '#000', theme: 'dark', position: 'bottom' })!;
     expect(shadow(h).querySelector('a')!.textContent).toBe('Get the app');
     expect(h.element.style.getPropertyValue('--ac')).toBe('#0a7');
+    expect(h.element.style.getPropertyValue('--ah')).toBe('#0a7');
+    expect(h.element.style.getPropertyValue('--ap')).toBe('#0a7');
     expect(h.element.style.getPropertyValue('--at')).toBe('#000');
     const css = shadow(h).querySelector('style')!.textContent!;
-    expect(css).toContain('--bg:#1F1B18');
+    expect(css).toContain(`--bg:${tokens.colors.dark.surface}`);
     expect(css).not.toContain('prefers-color-scheme');
     expect(css).toContain('position:fixed');
     expect(document.body.lastElementChild).toBe(h.element);
@@ -226,5 +228,68 @@ describe('banner: API surface and size', () => {
     const js = ts.transpileModule(src, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext, removeComments: true } }).outputText;
     const size = gzipSync(js, { level: 9 }).length;
     expect(size).toBeLessThan(3 * 1024);
+  });
+});
+
+describe('banner: DS v5 styling', () => {
+  beforeEach(() => setUA(IPHONE));
+  const styleOf = (h: { element: HTMLElement }) => h.element.shadowRoot!.querySelector('style')!.textContent!;
+
+  it('takes every colour from the generated tokens, light and dark', () => {
+    const css = styleOf(banner({ link: LINK, title: 'Hilltop Shoes' })!);
+    const { light, dark } = tokens.colors;
+    for (const [v, role] of [['--bg', 'surface'], ['--fg', 'text'], ['--mu', 'text-muted'], ['--bd', 'border'],
+      ['--ac', 'brand'], ['--ah', 'brand-hover'], ['--ap', 'brand-press'], ['--at', 'on-brand'], ['--fr', 'focus-ring']] as const) {
+      expect(css).toContain(`${v}:${light[role]}`);
+      expect(css).toContain(`${v}:${dark[role]}`);
+    }
+    expect(light.brand).toBe('#FF6A13');
+    expect(tokens.version.startsWith('5.')).toBe(true);
+  });
+
+  it('has no blue or cool grey anywhere in its CSS (DS v5 hue gate)', () => {
+    const css = styleOf(banner({ link: LINK, title: 'Hilltop Shoes' })!);
+    const hexes = css.match(/#[0-9a-f]{6}\b/gi)!;
+    expect(hexes.length).toBeGreaterThan(10);
+    for (const hex of hexes) {
+      const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255) as [number, number, number];
+      const max = Math.max(r, g, b);
+      const min = Math.min(r, g, b);
+      if (max - min < 0.004) continue; // pure white / black only
+      const d = max - min;
+      const h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+      const hue = (h * 60 + 360) % 360;
+      expect(hue, hex).toBeGreaterThanOrEqual(10);
+      expect(hue, hex).toBeLessThanOrEqual(60);
+    }
+  });
+
+  it('nothing under 12 px, 44 px targets on touch, visible focus, motion off when reduced', () => {
+    const css = styleOf(banner({ link: LINK, title: 'Hilltop Shoes' })!);
+    for (const m of css.matchAll(/font-size:(\d+)px/g)) expect(Number(m[1])).toBeGreaterThanOrEqual(12);
+    expect(css).toMatch(/@media\(pointer:coarse\)\{a\{min-height:44px\}\}/);
+    expect(css).toContain('height:44px'); // the close button
+    expect(css).toMatch(/:focus-visible\{outline:2px solid var\(--fr\);outline-offset:2px\}/);
+    expect(css).toMatch(/@media\(prefers-reduced-motion:reduce\)\{a,button\{transition:none\}\}/);
+    expect(css).toContain('forced-colors:active');
+  });
+
+  it('a custom accent gets readable text unless accentText is given', () => {
+    expect(readableOn('#FF6A13')).toBe('#0F0D0A');
+    expect(readableOn('#1a1a1a')).toBe('#FFFFFF');
+    expect(readableOn('#fff')).toBe('#0F0D0A');
+    expect(readableOn('rgb(20, 20, 20)')).toBe('#FFFFFF');
+    expect(readableOn('var(--brand)')).toBeNull();
+    const h = banner({ link: LINK, title: 'Hilltop Shoes', accent: '#123456' })!;
+    expect(h.element.style.getPropertyValue('--at')).toBe('#FFFFFF');
+    h.remove();
+    const v = banner({ link: LINK, title: 'Hilltop Shoes', accent: 'var(--x)' })!;
+    expect(v.element.style.getPropertyValue('--at')).toBe('');
+  });
+
+  it('the banner block matches src/tokens.ts (scripts/tokens.mjs --check)', async () => {
+    const t = await import('../scripts/tokens.mjs');
+    const local = await t.readLocal();
+    expect(readFileSync(SRC, 'utf8')).toContain(t.bannerBlock(local));
   });
 });
