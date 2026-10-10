@@ -147,7 +147,8 @@ span{margin-top:2px;color:var(--mu);font-size:13px;line-height:18px}
 a{flex:none;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;min-height:36px;padding:0 16px;border-radius:${RADIUS};background:var(--ac);color:var(--at);font-size:14px;line-height:20px;font-weight:600;text-decoration:none;white-space:nowrap;transition:background-color ${FAST}}
 @media(hover:hover){a:hover{background:var(--ah)}button:hover{color:var(--fg)}}
 a:active{background:var(--ap)}
-@media(pointer:coarse){a{min-height:44px}}
+@media(pointer:coarse){a{min-height:44px}button{width:44px}}
+@media(max-width:480px){span{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;white-space:normal}}
 a:focus-visible,button:focus-visible{outline:2px solid var(--fr);outline-offset:2px}
 @media(prefers-reduced-motion:reduce){a,button{transition:none}}
 @media(forced-colors:active){a{border:1px solid ButtonText}a:focus-visible,button:focus-visible{outline-color:Highlight}}`;

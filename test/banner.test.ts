@@ -267,8 +267,11 @@ describe('banner: DS v5 styling', () => {
   it('nothing under 12 px, 44 px targets on touch, visible focus, motion off when reduced', () => {
     const css = styleOf(banner({ link: LINK, title: 'Hilltop Shoes' })!);
     for (const m of css.matchAll(/font-size:(\d+)px/g)) expect(Number(m[1])).toBeGreaterThanOrEqual(12);
-    expect(css).toMatch(/@media\(pointer:coarse\)\{a\{min-height:44px\}\}/);
+    // Touch: the button is 44 px tall and the close button 44 x 44 (DS 5 / 9).
+    expect(css).toMatch(/@media\(pointer:coarse\)\{a\{min-height:44px\}button\{width:44px\}\}/);
     expect(css).toContain('height:44px'); // the close button
+    // Narrow screens: the subtitle wraps to two lines instead of cutting off mid-word.
+    expect(css).toMatch(/@media\(max-width:480px\)\{span\{[^}]*-webkit-line-clamp:2[^}]*white-space:normal\}\}/);
     expect(css).toMatch(/:focus-visible\{outline:2px solid var\(--fr\);outline-offset:2px\}/);
     expect(css).toMatch(/@media\(prefers-reduced-motion:reduce\)\{a,button\{transition:none\}\}/);
     expect(css).toContain('forced-colors:active');
