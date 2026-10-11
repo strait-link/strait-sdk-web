@@ -42,7 +42,7 @@ vectors (this package runs the same vectors in CI), so a change that would make 
 | Deferred match on first visit (`resolveDeferredLink`) | ◐ Beta | At most once per browser. Never throws. |
 | Smart app banner for mobile web (`banner`) | ◐ Beta | Styled with the Strait design system, light and dark. No requests of its own (apart from loading your `icon`), no cookies. [Docs](https://straitlink.in/docs/smart-banner/) |
 | iPhone install matching | ◐ Beta | Runs in your app through the native SDKs, not in this package. Your choice in Dashboard → Settings → iPhone installs: device matching, paste handoff, both or neither, read from Strait at runtime. Device matching is off by default. iPhone matches are labelled Estimated until measured. |
-| Published on npm | – Not yet | Install from GitHub until it is. |
+| Published on npm | ● Live | `npm install @straitlink/web` |
 
 ● Live · ◐ Beta · ○ Planned · – Not yet. The same words as the [platform status](https://straitlink.in/platform-status/) page.
 
@@ -53,12 +53,6 @@ vectors (this package runs the same vectors in CI), so a change that would make 
 npm install @straitlink/web
 ```
 <!-- /brand:install -->
-
-Not on the npm registry yet. Until it is, install from GitHub (npm builds it on install):
-
-```sh
-npm install github:bazingga08/strait-sdk-web#v0.6.1
-```
 
 ## Use
 

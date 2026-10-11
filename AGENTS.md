@@ -7,10 +7,8 @@ For websites and web apps: one call on launch resolves a deferred link (a tap th
 
 ## Install
 
-Not on the npm registry yet: install from GitHub (it builds during install).
-
 ```sh
-npm install github:bazingga08/strait-sdk-web#v0.6.1
+npm install @straitlink/web
 ```
 
 ## Keys (the rule agents get wrong most)
@@ -60,7 +58,7 @@ These steps need a person. Don't guess, invent values or work around them; stop 
 - **Dashboard settings** (Android package name and SHA-256, Apple Team ID, custom scheme, link destinations).
   There is no API for app settings.
 - **Real-device taps.** A deferred match needs a tap on a real phone, then a visit to the site.
-- **Anything you would publish** (`npm publish`, a deploy, a tag): this package is not on npm yet.
+- **Anything you would publish** (`npm publish`, a deploy, a tag): releases go out from a version tag (see PUBLISHING.md).
 
 ## Verify
 
