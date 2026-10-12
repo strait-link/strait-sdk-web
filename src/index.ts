@@ -51,8 +51,9 @@ const DONE_KEY = 'strait_match_done';
  * Call once on first launch. Asks the Strait engine whether this device
  * recently clicked one of your links, and returns the deferred deep link.
  *
- * Idempotent per browser: the lookup runs at most once (it writes an install
- * row server-side, so repeat calls would inflate the install count). Pass
+ * Idempotent per browser: the lookup succeeds at most once (a 2xx reply writes an
+ * install row server-side, so repeat calls would inflate the install count). A
+ * network error or non-2xx reply leaves it open for the next visit. Pass
  * `force: true` only in tests.
  */
 export async function resolveDeferredLink(
@@ -72,8 +73,9 @@ export async function resolveDeferredLink(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ publishableKey: config.publishableKey, platform: 'web', ...device }),
     });
-    markRan();
+    // A non-2xx (503 cold start, 429, ...) is not an answer: leave the check open so the next visit retries.
     if (!res.ok) return none;
+    markRan();
     const json = (await res.json()) as MatchResult;
     const code = json.matched === true ? replyReferralCode(json.referralCode) : null;
     if (code) json.referralCode = code;

@@ -76,7 +76,8 @@ if (result.matched && result.longUrl) {
 server-side, and remembers that in `localStorage`; where storage is blocked it can
 run again on a later visit). In a browser it doesn't throw: on any network or
 server error it resolves to `{ matched: false, matchMethod: 'none' }`, so it's safe
-to await on startup. Outside a browser (server rendering), pass `device` or don't
+to await on startup. A network error or non-2xx reply (say a 503 while the server
+wakes up) doesn't count as the one run: the next visit asks again. Outside a browser (server rendering), pass `device` or don't
 call it, because it reads `window.screen`.
 
 When the matched tap carried a referral code, the result also has `referralCode`

@@ -4,6 +4,10 @@
 
 The first npm release since 0.6.1 (B-SDK-07). Everything below was on main but unpublished.
 
+- Fix (SDK-22): `resolveDeferredLink` marks its one-time check done only after a 2xx reply. A
+  503 (server waking up), 429 or network error used to burn the check for good, so that browser
+  never got its deferred link; now the next visit retries.
+
 - Packaging: the tarball holds only `dist/`, README, LICENSE and package.json (CHANGELOG.md is no
   longer shipped; read it on GitHub), and `prepublishOnly` rebuilds `dist/` before every publish.
 - Smart app banner restyled to the Strait design system v5, light and dark: a warm surface bar

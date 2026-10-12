@@ -83,6 +83,29 @@ describe('resolveDeferredLink', () => {
     const res = await resolveDeferredLink({ ...config, fetch: fetchMock }, { force: true });
     expect(res.matched).toBe(false);
   });
+
+  it('retries after a 503 (or network error), so a later 200 still resolves the link', async () => {
+    const replies = [
+      () => Promise.reject(new Error('offline')),
+      () => Promise.resolve({ ok: false, status: 503, json: async () => ({}) }),
+      () =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({ matched: true, longUrl: 'https://app/x', matchMethod: 'exact_ext' }),
+        }),
+    ];
+    const fetchMock = vi.fn(() => replies.shift()!()) as unknown as typeof fetch;
+
+    expect((await resolveDeferredLink({ ...config, fetch: fetchMock })).matched).toBe(false);
+    expect((await resolveDeferredLink({ ...config, fetch: fetchMock })).matched).toBe(false);
+    const res = await resolveDeferredLink({ ...config, fetch: fetchMock });
+    expect(res).toMatchObject({ matched: true, longUrl: 'https://app/x' });
+
+    // ...and once a 200 arrives, the check is done for good.
+    await resolveDeferredLink({ ...config, fetch: fetchMock });
+    expect((fetchMock as unknown as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(3);
+  });
 });
 
 describe('referralCode (contract B21, preview)', () => {
