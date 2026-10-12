@@ -1,5 +1,15 @@
 # First publish of @straitlink/web (one time, by hand)
 
+## Where this stands (12 Oct 2026)
+
+- Steps 0 and 1 are done: the `straitlink` org exists and `@straitlink/web` 0.6.1 was published by hand
+  on 10 Oct 2026 (no provenance, as expected for a laptop publish).
+- **Step 2 (link the trusted publisher) is the one step left**, on npmjs.com. The workflow side is
+  ready: `release.yml` has `id-token: write`, Node 24, npm >= 11.5.1 and no `NPM_TOKEN`.
+- main carries 0.6.2 (package.json and CHANGELOG). After step 2, tag it:
+  `git tag v0.6.2 <main sha> && git push origin v0.6.2`. release.yml then publishes it.
+- Check: `npm view @straitlink/web version` prints `0.6.2`.
+
 npm only lets you link a trusted publisher to a package that already exists, so
 the very first version goes up from your laptop. Every later version is published
 by `.github/workflows/release.yml` when a `vX.Y.Z` tag is pushed, with no token.
