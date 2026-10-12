@@ -13,7 +13,10 @@ export interface StraitConfig {
    * Get started. Safe to ship in apps/websites — never use the secret key here.
    */
   publishableKey: string;
-  /** The Strait link host, e.g. https://<your-handle>.strait.link. */
+  /**
+   * The Strait link host, e.g. https://<your-handle>.strait.link. Must be https
+   * (plain http only for localhost, 127.0.0.1 and ::1); otherwise no request is sent.
+   */
   endpoint: string;
   /** Override device collection (tests / non-browser hosts). */
   device?: DeviceFields;
@@ -63,6 +66,14 @@ export async function resolveDeferredLink(
   const none: MatchResult = { matched: false, matchMethod: 'none' };
 
   if (!opts.force && alreadyRan()) return none;
+  if (!isSafeEndpoint(config.endpoint)) {
+    // Never throws (like every other failure here), but say why: over plain http anyone on the
+    // network could rewrite the deferred link the app is about to open.
+    console.warn(
+      `Strait: endpoint must use https:// (got "${config.endpoint}"); plain http is only allowed for localhost, 127.0.0.1 and ::1. Skipping the deferred-link check.`,
+    );
+    return none;
+  }
 
   const device = config.device ?? collectDevice();
   const doFetch = config.fetch ?? globalThis.fetch;
@@ -99,6 +110,18 @@ function markRan(): void {
     globalThis.localStorage?.setItem(DONE_KEY, '1');
   } catch {
     /* ignore (private mode / no storage) */
+  }
+}
+
+/** Hosts where plain http is allowed (local development only). Same rule as the Node SDK. */
+const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]']);
+
+function isSafeEndpoint(endpoint: string): boolean {
+  try {
+    const u = new URL(endpoint);
+    return u.protocol === 'https:' || (u.protocol === 'http:' && LOOPBACK.has(u.hostname));
+  } catch {
+    return false;
   }
 }
 

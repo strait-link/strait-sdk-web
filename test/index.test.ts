@@ -78,6 +78,24 @@ describe('resolveDeferredLink', () => {
     expect(res).toEqual({ matched: false, matchMethod: 'none' });
   });
 
+  it('refuses a non-https endpoint (no request sent), except localhost / 127.0.0.1 / ::1', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const matched = async () => ({ ok: true, json: async () => ({ matched: true, longUrl: 'https://x.com', matchMethod: 'exact_core' }) });
+    for (const bad of ['http://go.example.com', 'http://localhost.evil.com', 'http://127.0.0.2:3000', 'ftp://go.example.com', 'go.example.com', '']) {
+      const fetchMock = vi.fn(matched) as unknown as typeof fetch;
+      const res = await resolveDeferredLink({ ...config, endpoint: bad, fetch: fetchMock }, { force: true });
+      expect(res, bad).toEqual({ matched: false, matchMethod: 'none' });
+      expect(fetchMock, bad).not.toHaveBeenCalled();
+    }
+    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/endpoint must use https/));
+    warn.mockRestore();
+    for (const ok of ['https://go.example.com', 'http://localhost:3000', 'http://127.0.0.1:8787/', 'http://[::1]:3000', 'HTTP://LOCALHOST']) {
+      const fetchMock = vi.fn(matched) as unknown as typeof fetch;
+      const res = await resolveDeferredLink({ ...config, endpoint: ok, fetch: fetchMock }, { force: true });
+      expect(res.matched, ok).toBe(true);
+    }
+  });
+
   it('returns no-match on a non-200 response', async () => {
     const fetchMock = vi.fn(async () => ({ ok: false, json: async () => ({}) })) as unknown as typeof fetch;
     const res = await resolveDeferredLink({ ...config, fetch: fetchMock }, { force: true });
