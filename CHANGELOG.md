@@ -5,7 +5,7 @@
 The first npm release since 0.6.1 (B-SDK-07). Everything below was on main but unpublished.
 
 - Security (TM-07): `resolveDeferredLink` refuses a non-https `endpoint` (plain http only for
-  localhost, 127.0.0.1 and ::1): it sends no request, warns once in the console and returns no match.
+  localhost, 127.0.0.1 and ::1): it sends no request, logs a console warning and returns no match.
 - Fix (SDK-22): `resolveDeferredLink` marks its one-time check done only after a 2xx reply. A
   503 (server waking up), 429 or network error used to burn the check for good, so that browser
   never got its deferred link; now the next visit retries.
