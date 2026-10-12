@@ -1,7 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.6.2
 
+The first npm release since 0.6.1 (B-SDK-07). Everything below was on main but unpublished.
+
+- Packaging: the tarball holds only `dist/`, README, LICENSE and package.json (CHANGELOG.md is no
+  longer shipped; read it on GitHub), and `prepublishOnly` rebuilds `dist/` before every publish.
 - Smart app banner restyled to the Strait design system v5, light and dark: a warm surface bar
   (`#FFFFFF` / `#191613`), the one orange button (`#FF6A13`, ink text 6.8:1, radius 8), 15 / 13 px
   text (nothing under 12 px), a 2 px focus ring, 44 px tap targets on touch screens, hover and
@@ -15,7 +19,7 @@
 - README: the common Strait SDK header (logo, promise, badges, links), a platform features table
   with the iPhone beta truth, and a "Docs and support" section.
 - Test copy of the shared conformance vectors updated to v8 (B22 page.link `classifyUrl` cases).
-  The web SDK carries the vectors only; no code change, no version bump.
+  The web SDK carries the vectors only; no code change.
 
 ## 0.6.1
 
