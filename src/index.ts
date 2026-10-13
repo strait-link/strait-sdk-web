@@ -3,9 +3,7 @@ import { collectDevice, type DeviceFields } from './device.js';
 export type { DeviceFields } from './device.js';
 export { computeSignature, h32 } from './signature.js';
 import { banner } from './banner.js';
-export { banner, isMobile, readableOn, BANNER_KEY, type BannerOptions, type BannerHandle } from './banner.js';
-/** The Strait design tokens (DS v5) the banner is styled with: colours light and dark, fonts, radii, motion. */
-export * as tokens from './tokens.js';
+export { banner, isMobile, BANNER_KEY, type BannerOptions, type BannerHandle } from './banner.js';
 
 export interface StraitConfig {
   /**

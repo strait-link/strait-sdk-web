@@ -124,13 +124,7 @@ warm near-black bar (`#191613`) on dark ones, one orange button (`#FF6A13` with 
 motion. `theme: 'auto'` follows the visitor's light / dark setting.
 
 To match your own brand, pass `accent` (your button colour). The text on it is picked for contrast
-(ink or white) unless you pass `accentText`. `tokens` exports the colours the banner uses, so a page
-can match them:
-
-```ts
-import { tokens } from '@straitlink/web';
-tokens.colors.dark.surface; // '#191613'
-```
+(ink or white) unless you pass `accentText`.
 
 Preview every option locally: `npm run build`, serve the repo root, open `examples/banner.html`
 (add `?theme=dark`, `?position=bottom` or `?accent=%234A2C1D`).
@@ -145,8 +139,6 @@ Preview every option locally: `npm run build`, serve the repo root, open `exampl
 |--------|---------|
 | `resolveDeferredLink(config, opts?)` | the one call you need on launch |
 | `banner(options)` / `Strait.banner(options)` | smart app banner for mobile web; returns `{ element, dismiss, remove }` or `null` when not shown |
-| `readableOn(colour)` | ink or white, whichever reads better on a button colour (used for `accent`) |
-| `tokens` | the Strait design tokens (v5) the banner uses: `colors.light` / `colors.dark`, `fonts`, `radius`, `shadows`, `motion` |
 | `computeSignature(inputs)` | the canonical signature (advanced/testing) |
 | `h32(s)` | the canonical hash (advanced/testing) |
 
