@@ -23,7 +23,7 @@ The first npm release since 0.6.1 (B-SDK-07). Everything below was on main but u
   into `src/banner.ts` by the same script (it keeps no imports), and the tests check they agree.
 - Public API kept small (SDK-23, decision record: shared-spec `docs/adr/0001-sdk-public-api-surface.md`):
   `tokens` and `readableOn`, added on main after 0.6.1 and never published, stay internal. The
-  exports are the same as 0.6.1.
+  exports are the same as 0.6.1. `src/tokens.ts` is no longer compiled into `dist/`.
 - `examples/banner.html`: a preview page for every banner option (sample data: Hilltop Shoes).
 - README: the common Strait SDK header (logo, promise, badges, links), a platform features table
   with the iPhone beta truth, and a "Docs and support" section.

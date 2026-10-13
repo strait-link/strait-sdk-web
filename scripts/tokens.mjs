@@ -6,7 +6,7 @@
 //
 // It writes two things, both marked GENERATED:
 //   1. src/tokens.ts: the semantic colours (light and dark), fonts, radii, shadows and motion,
-//      read from brand/tokens/strait-tokens.ts. Internal (not exported); the test suite checks the banner against it.
+//      read from brand/tokens/strait-tokens.ts. Not shipped (tsconfig excludes it); the test suite checks the banner against it.
 //   2. The block between `// <tokens>` and `// </tokens>` in src/banner.ts: the CSS custom
 //      properties the smart banner uses. banner.ts keeps no imports (dist/banner.js can be
 //      copied and served on its own), so its values are written in rather than imported.
