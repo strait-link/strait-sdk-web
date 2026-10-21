@@ -90,7 +90,7 @@ ask again until it is right. Then prove it for real:
   headers `X-Strait-*`. Don't rename them.
 - Brand: Strait (the company name is never spelt "Straight"). "Straight" and "Stamped" name the two halves of
   the product (the tap goes straight to the exact screen; every tap is recorded); the tagline is "Straight to the screen. On the record." Don't write superlatives ("best", "cheapest") or speed / match-rate numbers in
-  docs or comments. iPhone install matching is in beta.
+  docs or comments. iPhone links are live; iPhone install matching is opt-in and an Estimated match.
 
 ## More
 
