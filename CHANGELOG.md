@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.3
+
+- README: the iPhone install matching row says Opt-in (off until you choose it; proven on iPhone
+  simulators) instead of Beta, the same words as the platform status page. No code change.
+- Test copy of the shared conformance vectors updated to v9 (B14 `deviceClass` group).
+
 ## 0.6.2
 
 The first npm release since 0.6.1 (B-SDK-07). Everything below was on main but unpublished.
