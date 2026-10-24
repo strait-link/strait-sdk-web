@@ -5,6 +5,10 @@ on:
   pull_request:
 permissions:
   contents: read
+# A newer push to the same branch or PR cancels the run still going (saves minutes).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   test:
     runs-on: ubuntu-latest

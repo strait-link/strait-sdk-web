@@ -1,0 +1,4722 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Strait API",
+    "version": "1.0.0",
+    "description": "Deep-linking + deferred-match API. Two keys, both in Dashboard → Get started: the **secret key** (`Authorization: Bearer st_live_…`, server-side only) for the link endpoints, and the **publishable key** (`publishableKey: \"st_pub_live_…\"` in the JSON body, safe in apps and websites) for /v1/match, /v1/referrer, /v1/resolve, /v1/open and /v1/event. Rotating the publishable key keeps the previous key working for 7 days; responses to the old key carry `Strait-Key-Deprecated: <ISO expiry>`, and after that it gets 401. Operations marked `x-internal: true` are used by the Strait dashboard or by Stripe and are not part of the public API. Errors are always JSON `{ \"error\": \"…\" }`: malformed JSON bodies get 400, unknown /v1 routes 404."
+  },
+  "servers": [
+    {
+      "url": "https://strait.link"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Links",
+      "description": "Create, read, update and deactivate short links (secret key, server-side)."
+    },
+    {
+      "name": "Analytics",
+      "description": "Taps, app opens, installs and conversions per link, channel, day or platform (secret key)."
+    },
+    {
+      "name": "Referrals",
+      "description": "Preview, not switched on yet: referral codes that ride on a tap and come back with the deferred match (secret key for the report)."
+    },
+    {
+      "name": "SDK",
+      "description": "Called by the Strait app and web SDKs with the publishable key: deferred matching, link resolution, open reports."
+    },
+    {
+      "name": "Events",
+      "description": "Conversion and revenue events, attributed to the tap they came from."
+    },
+    {
+      "name": "Webhooks",
+      "description": "Test webhooks, read their delivery history and redeliver."
+    },
+    {
+      "name": "Domains",
+      "description": "Custom link domains (Scale and Enterprise, up to 5 per workspace): add one, read the DNS records and its status, remove it (secret key or dashboard session)."
+    },
+    {
+      "name": "Export",
+      "description": "Everything your workspace needs to leave Strait."
+    },
+    {
+      "name": "Tools",
+      "description": "Dry runs and public checkers: simulate a tap, check App Links / Universal Links files, read a Live Tap Trace."
+    },
+    {
+      "name": "Billing",
+      "description": "Used by the Strait dashboard and by Stripe, Paddle and Razorpay. Not part of the public API."
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "schemas": {
+      "WebhookDelivery": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Also sent as X-Strait-Delivery"
+          },
+          "webhookId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "event": {
+            "type": "string",
+            "example": "link.clicked"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "delivered",
+              "failed"
+            ]
+          },
+          "attempts": {
+            "type": "integer"
+          },
+          "lastStatus": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "The receiver's last HTTP status"
+          },
+          "lastError": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "example": "HTTP 500 | timeout | unsafe_target | webhook_removed"
+          },
+          "nextAttemptAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "pending only"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "deliveredAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "Domain": {
+        "type": "object",
+        "properties": {
+          "hostname": {
+            "type": "string",
+            "example": "links.hilltop.example"
+          },
+          "verified": {
+            "type": "boolean",
+            "description": "true once Cloudflare reports the hostname and its certificate active and the ownership TXT record is in your DNS. Only then do links work on it."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "live",
+              "pending_dns",
+              "issuing_certificate",
+              "problem",
+              "not_created",
+              "unknown"
+            ],
+            "description": "live = serving your links. pending_dns = waiting for the CNAME and TXT records. issuing_certificate = DNS found, HTTPS certificate on its way. problem = needs attention (see message). not_created = saved while custom domains are read-only. unknown = the status could not be read right now."
+          },
+          "message": {
+            "type": "string",
+            "description": "Cloudflare's own words when something needs attention."
+          },
+          "records": {
+            "type": "array",
+            "description": "The DNS records to add at your DNS provider: one CNAME and the TXT records Cloudflare asks for.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "CNAME",
+                    "TXT"
+                  ]
+                },
+                "name": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "string"
+                },
+                "purpose": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "Link": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string",
+            "description": "Unique among the workspace's active links (another workspace may use the same slug)."
+          },
+          "shortUrl": {
+            "type": "string",
+            "format": "uri",
+            "description": "The link to share, on your workspace link domain: https://<handle>.strait.link/<slug>. Links live on their workspace's host; the bare root only answers a slug no other workspace uses."
+          },
+          "longUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "tenantId": {
+            "type": "string",
+            "description": "The workspace the link belongs to."
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "false once deactivated (DELETE /v1/links/{slug})."
+          },
+          "iosFallbackUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "androidFallbackUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "desktopUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "description": {
+            "type": "string"
+          },
+          "imageUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "campaign": {
+            "type": "string",
+            "description": "Analytics campaign; defaults to longUrl's utm_campaign."
+          },
+          "variants": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "format": "uri"
+                },
+                "weight": {
+                  "type": "number"
+                }
+              }
+            },
+            "description": "A/B destination variants, when set."
+          },
+          "passwordProtected": {
+            "type": "boolean",
+            "description": "Present (true) when the link has a password."
+          },
+          "blockedReason": {
+            "type": "string",
+            "description": "Set when the link was disabled under the Acceptable Use Policy."
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "expiresAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "epoch ms"
+          },
+          "expiredAction": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "page",
+              "store",
+              "url",
+              null
+            ],
+            "description": "Where a tap goes once the link has expired. page = the \"This link has expired\" page (410). store = Google Play on Android / the App Store on iPhone (302, from your app configuration; the Play install referrer carries the tap); computers, and phones whose store is not configured, get the expired-link web page, else the expired page. url = 302 to expiredUrl. Absent/null = the workspace setting (Settings → When a link expires; default page)."
+          },
+          "expiredUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri",
+            "description": "This link's expired-link web page (https); absent = the workspace's."
+          },
+          "startsAt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "epoch ms. Scheduled go-live: before it, taps get notLiveAction. Absent = live now."
+          },
+          "notLiveAction": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "page",
+              "store",
+              "url",
+              null
+            ],
+            "description": "Where a tap goes BEFORE startsAt (the link is not live yet). page = a branded \"Coming soon\" page. store = Google Play on Android / the App Store on iPhone (302, from your app configuration); computers, and phones whose store is not configured, get notLiveUrl, else the page. url = 302 to notLiveUrl. Taps before go-live are not recorded and never billed; link-preview bots still get the preview card. Absent = page."
+          },
+          "notLiveUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri",
+            "description": "This link's not-live web page (https)."
+          },
+          "countryRules": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "maxItems": 5,
+            "items": {
+              "type": "object",
+              "required": [
+                "countries",
+                "url"
+              ],
+              "properties": {
+                "countries": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 50,
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{2}$"
+                  },
+                  "example": [
+                    "IN",
+                    "BD"
+                  ]
+                },
+                "url": {
+                  "type": "string",
+                  "format": "uri",
+                  "description": "https; passes the same unsafe-destination check as longUrl"
+                }
+              }
+            },
+            "description": "Up to 5 rules, first match wins. When the tap's country (from Cloudflare, ISO 3166-1 alpha-2) is in a rule's countries, the rule's url replaces the web / fallback destination (iosFallbackUrl, androidFallbackUrl, desktopUrl, longUrl as a web page, the workspace fallback). Opening the app and the app-store hand-offs are unchanged. The country is used for this decision only and is never stored."
+          },
+          "legacyHost": {
+            "type": "string",
+            "example": "acme.page.link",
+            "description": "Imported from Firebase Dynamic Links: the old host (lower case, no https:// or path). Goes with legacyCode. When an app that keeps this host as an associated domain opens https://<legacyHost>/<legacyCode>, /v1/resolve finds this link by the old host + code before the slug, so the same code from two old hosts, or an old code and a newer slug, never clash. One active link per old host + code in a workspace (409 otherwise)."
+          },
+          "legacyCode": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9._~-]{1,128}$",
+            "example": "aBcD",
+            "description": "The old Firebase short code on legacyHost, exactly as it was (case-sensitive)."
+          },
+          "referralCode": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,64}$",
+            "description": "Preview (referrals not switched on yet). Only in the POST /v1/links answer, and only when the code was saved. Not returned by the list, get or update endpoints yet."
+          }
+        }
+      },
+      "NewLink": {
+        "type": "object",
+        "required": [
+          "slug",
+          "longUrl"
+        ],
+        "properties": {
+          "slug": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,64}$"
+          },
+          "longUrl": {
+            "type": "string",
+            "format": "uri",
+            "description": "https only. The app receives its path + query as the in-app route."
+          },
+          "iosFallbackUrl": {
+            "type": "string",
+            "format": "uri",
+            "description": "iPhone without the app: this page instead of longUrl (https)."
+          },
+          "androidFallbackUrl": {
+            "type": "string",
+            "format": "uri",
+            "description": "Android without the app (website mode): this page instead of longUrl (https)."
+          },
+          "desktopUrl": {
+            "type": "string",
+            "format": "uri",
+            "description": "Desktop browsers go here instead of longUrl (https)."
+          },
+          "title": {
+            "type": "string",
+            "description": "Social preview title."
+          },
+          "description": {
+            "type": "string",
+            "description": "Social preview description."
+          },
+          "imageUrl": {
+            "type": "string",
+            "format": "uri",
+            "description": "Social preview image (https)."
+          },
+          "campaign": {
+            "type": "string",
+            "description": "Campaign name for analytics. Defaults to longUrl's utm_campaign when omitted (and follows it when longUrl changes)."
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "expiresAt": {
+            "oneOf": [
+              {
+                "type": "integer",
+                "description": "epoch ms"
+              },
+              {
+                "type": "string",
+                "format": "date-time"
+              }
+            ],
+            "description": "After this, the link stops opening its destination; expiredAction decides where taps go. Omit for never."
+          },
+          "expiredAction": {
+            "type": "string",
+            "enum": [
+              "page",
+              "store",
+              "url"
+            ],
+            "description": "Where a tap goes once the link has expired. page = the \"This link has expired\" page (410). store = Google Play on Android / the App Store on iPhone (302, from your app configuration; the Play install referrer carries the tap); computers, and phones whose store is not configured, get the expired-link web page, else the expired page. url = 302 to expiredUrl. Omit to use the workspace setting (default page)."
+          },
+          "expiredUrl": {
+            "type": "string",
+            "format": "uri",
+            "description": "https. Required with expiredAction url; with store it is where computers go. Passes the same unsafe-destination check as longUrl."
+          },
+          "startsAt": {
+            "oneOf": [
+              {
+                "type": "integer",
+                "description": "epoch ms"
+              },
+              {
+                "type": "string",
+                "format": "date-time"
+              }
+            ],
+            "description": "Scheduled go-live. Before it, taps get notLiveAction; must be before expiresAt. Omit for live now."
+          },
+          "notLiveAction": {
+            "type": "string",
+            "enum": [
+              "page",
+              "store",
+              "url"
+            ],
+            "description": "Where a tap goes BEFORE startsAt (the link is not live yet). page = a branded \"Coming soon\" page. store = Google Play on Android / the App Store on iPhone (302, from your app configuration); computers, and phones whose store is not configured, get notLiveUrl, else the page. url = 302 to notLiveUrl. Taps before go-live are not recorded and never billed; link-preview bots still get the preview card. Omit for page."
+          },
+          "notLiveUrl": {
+            "type": "string",
+            "format": "uri",
+            "description": "https. Required with notLiveAction url; with store it is where computers go. Passes the same unsafe-destination check as longUrl."
+          },
+          "countryRules": {
+            "type": "array",
+            "maxItems": 5,
+            "items": {
+              "type": "object",
+              "required": [
+                "countries",
+                "url"
+              ],
+              "properties": {
+                "countries": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 50,
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{2}$"
+                  },
+                  "example": [
+                    "IN",
+                    "BD"
+                  ]
+                },
+                "url": {
+                  "type": "string",
+                  "format": "uri",
+                  "description": "https; passes the same unsafe-destination check as longUrl"
+                }
+              }
+            },
+            "description": "Up to 5 rules, first match wins. When the tap's country (from Cloudflare, ISO 3166-1 alpha-2) is in a rule's countries, the rule's url replaces the web / fallback destination (iosFallbackUrl, androidFallbackUrl, desktopUrl, longUrl as a web page, the workspace fallback). Opening the app and the app-store hand-offs are unchanged. The country is used for this decision only and is never stored."
+          },
+          "legacyHost": {
+            "type": "string",
+            "example": "acme.page.link",
+            "description": "Imported from Firebase Dynamic Links: the old host (lower case, no https:// or path). Goes with legacyCode. When an app that keeps this host as an associated domain opens https://<legacyHost>/<legacyCode>, /v1/resolve finds this link by the old host + code before the slug, so the same code from two old hosts, or an old code and a newer slug, never clash. One active link per old host + code in a workspace (409 otherwise)."
+          },
+          "legacyCode": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9._~-]{1,128}$",
+            "example": "aBcD",
+            "description": "The old Firebase short code on legacyHost, exactly as it was (case-sensitive)."
+          },
+          "referralCode": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,64}$",
+            "description": "Preview (referrals not switched on yet; until then the field is ignored). This link's referral code: 1 to 64 letters, digits, - or _. Every tap carries it unless the tap has its own ?strait_ref=; it comes back as `referralCode` in the deferred-match answer. Don't use an email address or phone number. Not accepted by the batch or update endpoints yet."
+          },
+          "password": {
+            "type": "string",
+            "writeOnly": true,
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Optional: visitors must enter it before the link opens (link-preview bots still get the preview card). Stored hashed, never returned; the link shows passwordProtected: true."
+          }
+        }
+      },
+      "AnalyticsMetrics": {
+        "type": "object",
+        "properties": {
+          "taps": {
+            "type": "integer",
+            "description": "Taps on live links (not deferred-match entries, not taps on expired links)."
+          },
+          "billableTaps": {
+            "type": "integer",
+            "description": "Of those, the taps that count toward your plan (a repeat of the same tap within seconds is not billed)."
+          },
+          "appOpens": {
+            "type": "integer",
+            "description": "App opens reported by the SDKs that came from one of your links."
+          },
+          "installs": {
+            "type": "integer",
+            "description": "Installs tied to one of your links (organic installs are not counted). The installs and first-open reports are merged: reports naming the same tap are one install, the same definition as the dashboard."
+          },
+          "conversions": {
+            "type": "integer",
+            "description": "POST /v1/event events tied to one of your links (directly or through their tap)."
+          },
+          "revenue": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            },
+            "description": "Event values summed per currency code (upper case; '' when an event gave none). Currencies are never added together."
+          }
+        }
+      },
+      "AnalyticsRow": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/AnalyticsMetrics"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "The group value: a UTC day (YYYY-MM-DD), a channel (whatsapp, instagram, direct…), a link id, or a platform (android, ios, desktop)."
+              },
+              "slug": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "group=link only: the link's slug."
+              }
+            }
+          }
+        ]
+      },
+      "AppLinksFinding": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "android.valid"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "warn",
+              "error"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "fix": {
+            "type": "string"
+          }
+        }
+      },
+      "MatchResult": {
+        "type": "object",
+        "properties": {
+          "matched": {
+            "type": "boolean"
+          },
+          "longUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "linkId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "matchMethod": {
+            "type": "string",
+            "enum": [
+              "install_referrer",
+              "exact_ext",
+              "exact_core",
+              "scored",
+              "clipboard",
+              "none"
+            ],
+            "description": "How it matched. 'clipboard' = a claimed paste-handoff token (POST /v1/handoff/claim). 'scored' is reserved for the scored iPhone matcher, which is not enabled yet."
+          },
+          "confidence": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "high",
+              "medium",
+              null
+            ],
+            "description": "Scored matches only (matchMethod 'scored'): 'high' or 'medium'. Null for every other answer of /v1/match."
+          },
+          "clickId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "When matched: the id of the tap this install came from. The SDKs remember it and send it with conversion events (/v1/event `clickId`)."
+          },
+          "referralCode": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,64}$",
+            "description": "Preview (referrals not switched on yet). Present only when matched and the tap carried a referral code: the tap's ?strait_ref=, else its link's referralCode. Absent otherwise (never null). The SDKs pass it to your app as `referralCode` on the deferred link (contract B21)."
+          },
+          "ios": {
+            "type": "object",
+            "required": [
+              "deviceMatching",
+              "pasteHandoff"
+            ],
+            "properties": {
+              "deviceMatching": {
+                "type": "boolean",
+                "description": "The workspace's Device matching switch (Dashboard Settings -> iPhone installs; opt-in, off by default)."
+              },
+              "pasteHandoff": {
+                "type": "boolean",
+                "description": "The workspace's Paste handoff switch (opt-in, off by default). When true and this lookup found no match, the SDK checks the clipboard for the one-time handoff link and claims it (POST /v1/handoff/claim)."
+              }
+            },
+            "description": "/v1/match with platform 'ios' only: the workspace's current iPhone deferred-link choice (device matching and/or paste handoff, the customer's choice in the dashboard; opt-in, off by default), read live on every lookup so a change in the dashboard applies without an app release. The SDKs never store it (contract B19)."
+          },
+          "reasons": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Why the matcher matched or refused, as short codes (never personal data). Exact matcher: exact_ext, exact_core, no_candidate, ambiguous (two identical-looking taps for different links: Strait refuses rather than guesses), race_lost (another lookup already took this tap), device_matching_off (the workspace turned iPhone install matching off). Paste handoff: clipboard, handoff_unknown, handoff_used, handoff_expired. Scored matches add signal codes (e.g. ipv6_64, ip_exact, asn, lang_full, dt_42s). New codes may be added; treat unknown codes as informational."
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/v1/links": {
+      "get": {
+        "summary": "List links",
+        "operationId": "listLinks",
+        "tags": [
+          "Links"
+        ],
+        "description": "Without `limit`/`cursor`: every active link as a JSON array (unchanged). With either: one page `{ links, nextCursor }`, newest first; pass `nextCursor` back as `cursor` until it is null. `status=paused` lists paused links instead (turned off with DELETE, PATCH `isActive: false` or the dashboard; links disabled for abuse are not listed), always as pages.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Page size, 1–100 (larger values are capped at 100). Default 50 when paging.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Opaque `nextCursor` from the previous page.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "description": "`active` (default) or `paused`. Paused links come back as pages; turn one back on with PATCH `isActive: true`.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "active",
+                "paused"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Links (array), or a page when limit/cursor is given",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Link"
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "links": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/Link"
+                          }
+                        },
+                        "nextCursor": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": [
+                  {
+                    "id": "lnk_5f0c2a8e-3b1d-4f6a-9c7e-2d8b1a0e4f63",
+                    "tenantId": "0b8f6d2e-7a41-4c39-9e15-3f2a6c8d1b70",
+                    "slug": "summer",
+                    "shortUrl": "https://hilltop.strait.link/summer",
+                    "longUrl": "https://shop.example.com/sale/summer?utm_source=whatsapp&utm_campaign=summer-2026",
+                    "isActive": true,
+                    "title": "Summer sale",
+                    "campaign": "summer-2026",
+                    "tags": [
+                      "sale"
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid limit, cursor or status"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a link",
+        "operationId": "createLink",
+        "tags": [
+          "Links"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewLink"
+              },
+              "example": {
+                "slug": "summer",
+                "longUrl": "https://shop.example.com/sale/summer?utm_source=whatsapp&utm_campaign=summer-2026",
+                "title": "Summer sale",
+                "tags": [
+                  "sale"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created: the link, with the shortUrl to share",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Link"
+                },
+                "example": {
+                  "id": "lnk_5f0c2a8e-3b1d-4f6a-9c7e-2d8b1a0e4f63",
+                  "tenantId": "0b8f6d2e-7a41-4c39-9e15-3f2a6c8d1b70",
+                  "slug": "summer",
+                  "shortUrl": "https://hilltop.strait.link/summer",
+                  "longUrl": "https://shop.example.com/sale/summer?utm_source=whatsapp&utm_campaign=summer-2026",
+                  "isActive": true,
+                  "title": "Summer sale",
+                  "campaign": "summer-2026",
+                  "tags": [
+                    "sale"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid field, or destination_blocked (a URL failed the unsafe-destination check)"
+          },
+          "401": {
+            "description": "Missing or invalid secret key"
+          },
+          "402": {
+            "description": "Plan limit reached (this month's new links, or taps over twice the plan). Existing links keep working. Body: `{ error, reason: \"links\" | \"clicks\", upgradeUrl }` (\"clicks\" = the monthly tap limit)."
+          },
+          "409": {
+            "description": "An active link with this slug already exists in this workspace"
+          },
+          "429": {
+            "description": "New-account limit: a workspace younger than 24 hours can create 25 links. It lifts by itself; Retry-After says when. Body: `{ error: \"new_account_limit\", reason: \"links\", message, limit, resetsAt }`."
+          }
+        }
+      }
+    },
+    "/v1/links/batch": {
+      "post": {
+        "summary": "Create up to 500 links in one call",
+        "operationId": "batchCreateLinks",
+        "tags": [
+          "Links"
+        ],
+        "description": "For imports and migrations. Each item passes the same checks as POST /v1/links (slug rules, https destinations, the unsafe-destination check, plan limits) and gets its own result; a bad item never fails the batch. A slug already used in the workspace (or earlier in the same batch) is a per-item 409, so re-running an import is safe. The response is 200 whenever the request itself is valid: read `results[i].ok`. Items past a plan limit get 402.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "links"
+                ],
+                "properties": {
+                  "links": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 500,
+                    "items": {
+                      "$ref": "#/components/schemas/NewLink"
+                    }
+                  }
+                }
+              },
+              "example": {
+                "links": [
+                  {
+                    "slug": "summer",
+                    "longUrl": "https://shop.example.com/sale/summer?utm_source=whatsapp&utm_campaign=summer-2026"
+                  },
+                  {
+                    "slug": "winter",
+                    "longUrl": "https://shop.example.com/sale/winter"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "One result per item, in order, plus totals",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "index": {
+                            "type": "integer",
+                            "description": "Position of the item in `links`."
+                          },
+                          "ok": {
+                            "type": "boolean"
+                          },
+                          "status": {
+                            "type": "integer",
+                            "description": "What POST /v1/links would have answered: 201, 400, 402 or 409."
+                          },
+                          "link": {
+                            "$ref": "#/components/schemas/Link"
+                          },
+                          "error": {
+                            "type": "string"
+                          },
+                          "reason": {
+                            "type": "string",
+                            "description": "For destination_blocked and plan limits."
+                          }
+                        }
+                      }
+                    },
+                    "summary": {
+                      "type": "object",
+                      "properties": {
+                        "total": {
+                          "type": "integer"
+                        },
+                        "created": {
+                          "type": "integer"
+                        },
+                        "failed": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "results": [
+                    {
+                      "index": 0,
+                      "ok": true,
+                      "status": 201,
+                      "link": {
+                        "id": "lnk_5f0c2a8e-3b1d-4f6a-9c7e-2d8b1a0e4f63",
+                        "tenantId": "0b8f6d2e-7a41-4c39-9e15-3f2a6c8d1b70",
+                        "slug": "summer",
+                        "shortUrl": "https://hilltop.strait.link/summer",
+                        "longUrl": "https://shop.example.com/sale/summer?utm_source=whatsapp&utm_campaign=summer-2026",
+                        "isActive": true,
+                        "title": "Summer sale",
+                        "campaign": "summer-2026",
+                        "tags": [
+                          "sale"
+                        ]
+                      }
+                    },
+                    {
+                      "index": 1,
+                      "ok": false,
+                      "status": 409,
+                      "error": "slug already exists in this workspace"
+                    }
+                  ],
+                  "summary": {
+                    "total": 2,
+                    "created": 1,
+                    "failed": 1
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`links` is missing, empty, or has more than 500 items"
+          },
+          "401": {
+            "description": "Missing or invalid secret key"
+          }
+        }
+      }
+    },
+    "/v1/links/{slug}": {
+      "get": {
+        "summary": "Get a link",
+        "operationId": "getLink",
+        "tags": [
+          "Links"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "description": "The link's slug: the part after your link domain, e.g. `summer`",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The link (with shortUrl)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Link"
+                },
+                "example": {
+                  "id": "lnk_5f0c2a8e-3b1d-4f6a-9c7e-2d8b1a0e4f63",
+                  "tenantId": "0b8f6d2e-7a41-4c39-9e15-3f2a6c8d1b70",
+                  "slug": "summer",
+                  "shortUrl": "https://hilltop.strait.link/summer",
+                  "longUrl": "https://shop.example.com/sale/summer?utm_source=whatsapp&utm_campaign=summer-2026",
+                  "isActive": true,
+                  "title": "Summer sale",
+                  "campaign": "summer-2026",
+                  "tags": [
+                    "sale"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No active link with this slug in the key's workspace"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Update a link",
+        "operationId": "updateLink",
+        "tags": [
+          "Links"
+        ],
+        "description": "Send only the fields to change. null clears expiresAt (never expires), expiredAction (back to the workspace setting), expiredUrl, startsAt (live now), notLiveAction (the coming-soon page), notLiveUrl and countryRules (null or [] = none; a list replaces all rules). `isActive` is sent on its own: `false` pauses the link (same as DELETE). `true` answers the active link with this slug if there is one (safe to retry; check its longUrl), else turns the most recently paused one back on (taps follow within 30 seconds, like any edit). A link disabled for abuse cannot be turned back on (409 link_blocked).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "description": "The link's slug: the part after your link domain, e.g. `summer`",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "longUrl": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "https only"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "tags": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "expiresAt": {
+                    "oneOf": [
+                      {
+                        "type": "integer",
+                        "description": "epoch ms"
+                      },
+                      {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "expiredAction": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "enum": [
+                      "page",
+                      "store",
+                      "url",
+                      null
+                    ],
+                    "description": "Where taps go once the link has expired (see NewLink); null = the workspace setting."
+                  },
+                  "expiredUrl": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "uri",
+                    "description": "https; required when expiredAction is url."
+                  },
+                  "startsAt": {
+                    "oneOf": [
+                      {
+                        "type": "integer",
+                        "description": "epoch ms"
+                      },
+                      {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Scheduled go-live (see NewLink); null = live now."
+                  },
+                  "notLiveAction": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "enum": [
+                      "page",
+                      "store",
+                      "url",
+                      null
+                    ],
+                    "description": "Where taps go before startsAt (see NewLink); null = the coming-soon page."
+                  },
+                  "notLiveUrl": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "uri",
+                    "description": "https; required when notLiveAction is url."
+                  },
+                  "isActive": {
+                    "type": "boolean",
+                    "description": "Send alone. false = pause, true = turn the paused link back on."
+                  },
+                  "countryRules": {
+                    "type": [
+                      "array",
+                      "null"
+                    ],
+                    "maxItems": 5,
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "countries",
+                        "url"
+                      ],
+                      "properties": {
+                        "countries": {
+                          "type": "array",
+                          "minItems": 1,
+                          "maxItems": 50,
+                          "items": {
+                            "type": "string",
+                            "pattern": "^[A-Z]{2}$"
+                          },
+                          "example": [
+                            "IN",
+                            "BD"
+                          ]
+                        },
+                        "url": {
+                          "type": "string",
+                          "format": "uri",
+                          "description": "https; passes the same unsafe-destination check as longUrl"
+                        }
+                      }
+                    },
+                    "description": "Replaces all country rules (see NewLink); null or [] removes them."
+                  }
+                }
+              },
+              "example": {
+                "longUrl": "https://shop.example.com/sale/summer-v2",
+                "expiresAt": "2026-12-31T23:59:59Z"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Link"
+                },
+                "example": {
+                  "id": "lnk_5f0c2a8e-3b1d-4f6a-9c7e-2d8b1a0e4f63",
+                  "tenantId": "0b8f6d2e-7a41-4c39-9e15-3f2a6c8d1b70",
+                  "slug": "summer",
+                  "shortUrl": "https://hilltop.strait.link/summer",
+                  "longUrl": "https://shop.example.com/sale/summer-v2",
+                  "isActive": true,
+                  "title": "Summer sale",
+                  "campaign": "summer-2026",
+                  "tags": [
+                    "sale"
+                  ],
+                  "expiresAt": 1798761599000
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid field, isActive sent with other fields, or destination_blocked (a URL failed the unsafe-destination check; with isActive: true the link stays paused)"
+          },
+          "404": {
+            "description": "Not found (with isActive: true: no paused or active link with this slug)"
+          },
+          "409": {
+            "description": "isActive: true refused: link_blocked (disabled for abuse) or slug_in_use (the database refused: a link created at the same moment, or the same Firebase link is on)"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Deactivate a link",
+        "operationId": "deactivateLink",
+        "tags": [
+          "Links"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "description": "The link's slug: the part after your link domain, e.g. `summer`",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deactivated"
+          },
+          "401": {
+            "description": "Missing or invalid secret key"
+          },
+          "404": {
+            "description": "No active link with this slug in the key's workspace"
+          }
+        }
+      }
+    },
+    "/v1/links/{slug}/qr": {
+      "get": {
+        "summary": "Get a branded QR code for a link",
+        "operationId": "getLinkQr",
+        "tags": [
+          "Links"
+        ],
+        "description": "A print-ready QR code (PNG or SVG) that opens the link's short URL. It uses the workspace's QR style (Dashboard → Settings → QR codes: colour, background, app icon in the middle); query parameters override it for this one code. By default the code adds `utm_source=qr`, so scans show as the **qr** channel in analytics (an existing utm_source on the link is kept). The code must be darker than its background with a contrast of at least 3:1, or the request is refused with 400. With a logo the code uses error correction H. The logo is the app icon from Settings: PNG, JPEG or WebP in SVG codes, PNG only in PNG codes; X-Strait-Qr-Logo says whether it was embedded. Rate limit: 60 codes a minute per workspace; PNG renders also share a server-wide budget (large PNGs may get 429, retry or use SVG).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "description": "The link's slug: the part after your link domain, e.g. `summer`",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "description": "Image format",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "png",
+                "svg"
+              ],
+              "default": "png"
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "description": "Width and height in pixels",
+            "schema": {
+              "type": "integer",
+              "minimum": 128,
+              "maximum": 2048,
+              "default": 1024
+            }
+          },
+          {
+            "name": "margin",
+            "in": "query",
+            "description": "Quiet zone around the code, in modules",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 16,
+              "default": 2
+            }
+          },
+          {
+            "name": "color",
+            "in": "query",
+            "description": "Code colour as hex (`1f2937`, or `%231f2937`). Default: the workspace's QR colour, else black.",
+            "schema": {
+              "type": "string",
+              "example": "1f2937"
+            }
+          },
+          {
+            "name": "background",
+            "in": "query",
+            "description": "Background colour as hex. Default: the workspace's QR background, else white.",
+            "schema": {
+              "type": "string",
+              "example": "ffffff"
+            }
+          },
+          {
+            "name": "logo",
+            "in": "query",
+            "description": "Put the app icon in the middle. Default: the workspace's QR setting.",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "track",
+            "in": "query",
+            "description": "Add utm_source=qr so scans count as the qr channel",
+            "schema": {
+              "type": "boolean",
+              "default": true
+            }
+          },
+          {
+            "name": "download",
+            "in": "query",
+            "description": "true: Content-Disposition attachment (a browser saves the file)",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "tenantId",
+            "in": "query",
+            "description": "Dashboard sessions only: the workspace id (a secret key already names its workspace)",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The QR code",
+            "headers": {
+              "X-Strait-Qr-Url": {
+                "description": "The exact URL encoded in the code",
+                "schema": {
+                  "type": "string",
+                  "format": "uri"
+                }
+              },
+              "X-Strait-Qr-Logo": {
+                "description": "embedded · off · no_icon (no app icon in Settings) · unavailable (icon unreachable or not PNG/JPEG/WebP ≤ 512 KB) · png_needs_png_icon (use format=svg, or a PNG icon)",
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "embedded",
+                    "off",
+                    "no_icon",
+                    "unavailable",
+                    "png_needs_png_icon"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "image/svg+xml": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1024\" height=\"1024\" viewBox=\"0 0 37 37\" shape-rendering=\"crispEdges\"><rect width=\"37\" height=\"37\" fill=\"#ffffff\"/><path fill=\"#1f2937\" d=\"M2 2h7v1h-7z…\"/></svg>"
+              },
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameter, or colours that would not scan (code lighter than the background, or contrast under 3:1)"
+          },
+          "401": {
+            "description": "Missing or invalid secret key / session"
+          },
+          "404": {
+            "description": "No active link with this slug in the workspace"
+          },
+          "429": {
+            "description": "More than 60 codes a minute for this workspace (Retry-After: 1), or PNG rendering is busy server-wide (Retry-After: 2; SVG is not limited by it)"
+          }
+        }
+      }
+    },
+    "/v1/analytics": {
+      "get": {
+        "summary": "Read analytics",
+        "operationId": "getAnalytics",
+        "tags": [
+          "Analytics"
+        ],
+        "description": "Taps, app opens, installs, conversions and revenue for your workspace in [from, to), for every link or one, optionally grouped by day, channel, link or platform. The numbers use the same definitions as the dashboard. Each item counts at its own time (a tap at its tap time, an install at its install time); days are UTC. Secret key only (a publishable key gets 401). At most 92 days per call and 30 calls a minute per workspace (429 with Retry-After).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "description": "Inclusive start: ISO date (2026-10-01, UTC), ISO date-time or epoch ms. Default: 30 days before `to`.",
+            "schema": {
+              "type": "string",
+              "example": "2026-09-01"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "description": "Exclusive end, same formats. Default: now.",
+            "schema": {
+              "type": "string",
+              "example": "2026-10-01"
+            }
+          },
+          {
+            "name": "link",
+            "in": "query",
+            "required": false,
+            "description": "Only this link: an active link's slug, e.g. `summer`.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,64}$"
+            }
+          },
+          {
+            "name": "group",
+            "in": "query",
+            "required": false,
+            "description": "Split the numbers into rows. Default none (totals only).",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "none",
+                "day",
+                "channel",
+                "link",
+                "platform"
+              ],
+              "default": "none"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Totals, plus one row per group value (biggest first; by date for group=day). `rows` is empty for group=none.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "from": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "to": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "timezone": {
+                      "type": "string",
+                      "enum": [
+                        "UTC"
+                      ]
+                    },
+                    "link": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "The slug asked for, or null for every link."
+                    },
+                    "group": {
+                      "type": "string",
+                      "enum": [
+                        "none",
+                        "day",
+                        "channel",
+                        "link",
+                        "platform"
+                      ]
+                    },
+                    "totals": {
+                      "$ref": "#/components/schemas/AnalyticsMetrics"
+                    },
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AnalyticsRow"
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "from": "2026-09-01T00:00:00.000Z",
+                  "to": "2026-10-01T00:00:00.000Z",
+                  "timezone": "UTC",
+                  "link": null,
+                  "group": "channel",
+                  "totals": {
+                    "taps": 1840,
+                    "billableTaps": 1795,
+                    "appOpens": 1210,
+                    "installs": 312,
+                    "conversions": 96,
+                    "revenue": {
+                      "INR": 48210
+                    }
+                  },
+                  "rows": [
+                    {
+                      "key": "whatsapp",
+                      "taps": 1320,
+                      "billableTaps": 1290,
+                      "appOpens": 905,
+                      "installs": 241,
+                      "conversions": 71,
+                      "revenue": {
+                        "INR": 35400
+                      }
+                    },
+                    {
+                      "key": "instagram",
+                      "taps": 380,
+                      "billableTaps": 368,
+                      "appOpens": 221,
+                      "installs": 52,
+                      "conversions": 19,
+                      "revenue": {
+                        "INR": 10010
+                      }
+                    },
+                    {
+                      "key": "direct",
+                      "taps": 140,
+                      "billableTaps": 137,
+                      "appOpens": 84,
+                      "installs": 19,
+                      "conversions": 6,
+                      "revenue": {
+                        "INR": 2800
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad from / to (or a range over 92 days), unknown group, malformed link"
+          },
+          "401": {
+            "description": "Missing or invalid secret key, or a publishable key"
+          },
+          "404": {
+            "description": "No active link with this slug in the key's workspace"
+          },
+          "429": {
+            "description": "Over 30 calls a minute for this workspace"
+          }
+        }
+      }
+    },
+    "/v1/usage": {
+      "get": {
+        "summary": "Read this month's usage",
+        "operationId": "getUsage",
+        "tags": [
+          "Analytics"
+        ],
+        "description": "Where your workspace stands against its plan this calendar month (UTC): billed taps and new links, and what the plan includes (null = no limit). `level` is ok, warn from 80 % of the included taps, over from 100 %. Over your plan, links and deferred matching keep working: nothing here ever stops a redirect. `new_links_paused` is true at twice the included taps or at the plan's new-link limit; creating a link then answers 402 until you upgrade or the month ends. Secret key only (a publishable key gets 401); 30 calls a minute per workspace (429 with Retry-After).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "This month's usage, the plan and the over-limit flags.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "month": {
+                      "type": "string",
+                      "example": "2026-10",
+                      "description": "YYYY-MM, UTC"
+                    },
+                    "plan": {
+                      "type": "string",
+                      "enum": [
+                        "free",
+                        "starter",
+                        "scale",
+                        "enterprise"
+                      ],
+                      "description": "The plan in effect (a canceled plan, or one past due for over 7 days, is free)."
+                    },
+                    "taps": {
+                      "type": "object",
+                      "properties": {
+                        "used": {
+                          "type": "integer"
+                        },
+                        "included": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        }
+                      }
+                    },
+                    "links": {
+                      "type": "object",
+                      "properties": {
+                        "created": {
+                          "type": "integer"
+                        },
+                        "included": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        }
+                      }
+                    },
+                    "level": {
+                      "type": "string",
+                      "enum": [
+                        "ok",
+                        "warn",
+                        "over"
+                      ]
+                    },
+                    "new_links_paused": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "example": {
+                  "month": "2026-10",
+                  "plan": "free",
+                  "taps": {
+                    "used": 8560,
+                    "included": 10000
+                  },
+                  "links": {
+                    "created": 14,
+                    "included": 100
+                  },
+                  "level": "warn",
+                  "new_links_paused": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid secret key, or a publishable key"
+          },
+          "429": {
+            "description": "Over 30 calls a minute for this workspace"
+          }
+        }
+      }
+    },
+    "/v1/referrals": {
+      "get": {
+        "summary": "Read the referral report (preview)",
+        "operationId": "getReferrals",
+        "tags": [
+          "Referrals"
+        ],
+        "description": "Preview, not switched on yet: until referrals are switched on for the API, this answers 404 like any unknown /v1 route, and the fields may change before then. For each referral code in [from, to): the taps that carried it and the referred installs (an install that opened and matched a tap with that code, at most one per tap). A tap counts at its tap time, a referred install at its first open; days are UTC. Most conversions first. Secret key only (a publishable key gets 401). At most 92 days per call and 30 calls a minute per workspace (429 with Retry-After). Each new referred install also fires the `referral.converted` webhook.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "description": "Inclusive start: ISO date (2026-10-01, UTC), ISO date-time or epoch ms. Default: 30 days before `to`.",
+            "schema": {
+              "type": "string",
+              "example": "2026-10-01"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "description": "Exclusive end, same formats. Default: now.",
+            "schema": {
+              "type": "string",
+              "example": "2026-11-01"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Totals plus one row per referral code",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "preview": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ],
+                      "description": "Always true while referrals are a preview."
+                    },
+                    "from": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "to": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "timezone": {
+                      "type": "string",
+                      "enum": [
+                        "UTC"
+                      ]
+                    },
+                    "totals": {
+                      "type": "object",
+                      "properties": {
+                        "codes": {
+                          "type": "integer",
+                          "description": "Codes with at least one tap or referred install in the range."
+                        },
+                        "taps": {
+                          "type": "integer"
+                        },
+                        "conversions": {
+                          "type": "integer",
+                          "description": "Referred installs."
+                        }
+                      }
+                    },
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "code": {
+                            "type": "string"
+                          },
+                          "taps": {
+                            "type": "integer",
+                            "description": "Taps that carried this code."
+                          },
+                          "conversions": {
+                            "type": "integer",
+                            "description": "Referred installs with this code."
+                          },
+                          "lastTapAt": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          },
+                          "lastConversionAt": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "preview": true,
+                  "from": "2026-10-01T00:00:00.000Z",
+                  "to": "2026-11-01T00:00:00.000Z",
+                  "timezone": "UTC",
+                  "totals": {
+                    "codes": 2,
+                    "taps": 57,
+                    "conversions": 14
+                  },
+                  "rows": [
+                    {
+                      "code": "ASHA42",
+                      "taps": 41,
+                      "conversions": 11,
+                      "lastTapAt": "2026-10-30T18:12:00.000Z",
+                      "lastConversionAt": "2026-10-30T18:20:00.000Z"
+                    },
+                    {
+                      "code": "RAVI7",
+                      "taps": 16,
+                      "conversions": 3,
+                      "lastTapAt": "2026-10-28T09:41:00.000Z",
+                      "lastConversionAt": "2026-10-27T11:05:00.000Z"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad from / to (or a range over 92 days)"
+          },
+          "401": {
+            "description": "Missing or invalid secret key, or a publishable key"
+          },
+          "404": {
+            "description": "Referrals are not switched on"
+          },
+          "429": {
+            "description": "Over 30 calls a minute for this workspace"
+          }
+        }
+      }
+    },
+    "/v1/match": {
+      "post": {
+        "summary": "Deferred-match lookup (first app open after an install)",
+        "description": "Called once by the SDKs on the first launch after an install, to find the tap that led to it. On iPhone it compares coarse device signals (screen, language, time zone, network) with recent taps of this workspace and answers only when exactly one tap fits; ambiguous cases are refused, never guessed. Android uses POST /v1/referrer (Play Install Referrer) instead. Rate limited per IP.",
+        "operationId": "matchInstall",
+        "tags": [
+          "SDK"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "publishableKey",
+                  "platform",
+                  "screenWidth",
+                  "pixelRatio",
+                  "language",
+                  "timezone"
+                ],
+                "properties": {
+                  "publishableKey": {
+                    "type": "string",
+                    "example": "st_pub_live_…"
+                  },
+                  "platform": {
+                    "type": "string"
+                  },
+                  "screenWidth": {
+                    "type": "number"
+                  },
+                  "pixelRatio": {
+                    "type": "number"
+                  },
+                  "language": {
+                    "type": "string"
+                  },
+                  "timezone": {
+                    "type": "string"
+                  },
+                  "record": {
+                    "type": "boolean",
+                    "description": "false = a read only (SDK checkDeferred): answer the match, record no install, open or webhook. Omit for the real first-launch check."
+                  }
+                }
+              },
+              "example": {
+                "publishableKey": "st_pub_live_…",
+                "platform": "ios",
+                "screenWidth": 393,
+                "pixelRatio": 3,
+                "language": "en-IN",
+                "timezone": "Asia/Kolkata"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Match result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchResult"
+                },
+                "example": {
+                  "matched": true,
+                  "longUrl": "https://shop.example.com/sale/summer?utm_source=whatsapp&utm_campaign=summer-2026",
+                  "linkId": "lnk_5f0c2a8e-3b1d-4f6a-9c7e-2d8b1a0e4f63",
+                  "matchMethod": "exact_ext",
+                  "confidence": null,
+                  "clickId": "9a1c7e52-4b3d-4f8e-a6d1-0c2b5e7f9a34",
+                  "reasons": [
+                    "exact_ext"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "platform and the device fields are required"
+          },
+          "401": {
+            "description": "Missing or invalid publishable key"
+          },
+          "429": {
+            "description": "Rate limited"
+          }
+        }
+      }
+    },
+    "/v1/handoff/claim": {
+      "post": {
+        "summary": "iPhone paste handoff (opt-in): claim a one-time handoff token (exact, single use)",
+        "operationId": "claimHandoff",
+        "tags": [
+          "SDK"
+        ],
+        "description": "Only when the workspace turned on Paste handoff (Dashboard Settings -> iPhone installs; opt-in, off by default); the SDK reads it live from the ios.pasteHandoff field of POST /v1/match and checks the clipboard only then. The token comes from the handoff link https://<link host>/h/<token> that the tap page copied; it belongs to one tap of this workspace, works once and expires after 24 hours. When it does not match, nothing is recorded and the SDK falls back to POST /v1/match with the same openId. Rate limited per IP.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "publishableKey",
+                  "token"
+                ],
+                "properties": {
+                  "publishableKey": {
+                    "type": "string",
+                    "example": "st_pub_live_…"
+                  },
+                  "token": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9_-]{22}$"
+                  },
+                  "platform": {
+                    "type": "string",
+                    "example": "ios"
+                  },
+                  "openId": {
+                    "type": "string",
+                    "description": "The open id of this first app open: the claim also reports the open."
+                  },
+                  "at": {
+                    "type": "number",
+                    "description": "When the app opened (epoch ms)."
+                  }
+                }
+              },
+              "example": {
+                "publishableKey": "st_pub_live_…",
+                "token": "Qm9yZWFsaXMtaGFuZG9mZg",
+                "platform": "ios",
+                "openId": "o_lx3k2a_9f8e7d6c5b4a",
+                "at": 1790000000000
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Claim result: matchMethod clipboard with clickId, or matched:false with reason handoff_unknown, handoff_used, handoff_expired or not_found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchResult"
+                },
+                "example": {
+                  "matched": true,
+                  "longUrl": "https://shop.example.com/sale/summer?utm_source=whatsapp&utm_campaign=summer-2026",
+                  "linkId": "lnk_5f0c2a8e-3b1d-4f6a-9c7e-2d8b1a0e4f63",
+                  "matchMethod": "clipboard",
+                  "confidence": null,
+                  "clickId": "9a1c7e52-4b3d-4f8e-a6d1-0c2b5e7f9a34",
+                  "reasons": [
+                    "clipboard"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "token is not a handoff token"
+          },
+          "401": {
+            "description": "missing or invalid publishable key"
+          },
+          "429": {
+            "description": "rate limited"
+          }
+        }
+      }
+    },
+    "/v1/store-sheet": {
+      "post": {
+        "summary": "Record an in-app store sheet tap and get what keeps the deep link (new)",
+        "operationId": "openStoreSheet",
+        "tags": [
+          "SDK"
+        ],
+        "description": "New. Called by the SDKs (Strait.openStoreSheet) just before an app shows the app store inside itself: Google Play inline install on Android, SKOverlay / SKStoreProductViewController on iPhone. Records a tap with sent_to 'store_sheet' (not billed while the store sheet is new). Android gets the Play Install Referrer string (strait_link + strait_click, matched exactly by /v1/referrer); iPhone gets the App Store id, the link's campaign as the ct token and, with Paste handoff on, a one-time handoff link. This works inside your own app only; a link tapped inside another company's app cannot open a store sheet there.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "publishableKey",
+                  "url",
+                  "platform"
+                ],
+                "properties": {
+                  "publishableKey": {
+                    "type": "string",
+                    "example": "st_pub_live_…"
+                  },
+                  "url": {
+                    "type": "string",
+                    "description": "A short link of the key's workspace"
+                  },
+                  "deviceClass": {
+                    "type": "string",
+                    "enum": [
+                      "phone",
+                      "tablet"
+                    ],
+                    "description": "What the app runs on (iPad = tablet); phone when not sent"
+                  },
+                  "platform": {
+                    "type": "string",
+                    "enum": [
+                      "android",
+                      "ios"
+                    ]
+                  }
+                }
+              },
+              "example": {
+                "publishableKey": "st_pub_live_…",
+                "url": "https://hilltop.strait.link/summer",
+                "platform": "android"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok:true with the store details, or ok:false with reason (not_found, disabled, expired, not_live, password_protected)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "ok": true,
+                  "beta": true,
+                  "clickId": "9a1c7e52-4b3d-4f8e-a6d1-0c2b5e7f9a34",
+                  "linkId": "lnk_5f0c2a8e-3b1d-4f6a-9c7e-2d8b1a0e4f63",
+                  "android": {
+                    "package": "shoes.hilltop.app",
+                    "referrer": "strait_link=lnk_5f0c2a8e-3b1d-4f6a-9c7e-2d8b1a0e4f63&strait_click=9a1c7e52-4b3d-4f8e-a6d1-0c2b5e7f9a34"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad url or platform"
+          },
+          "401": {
+            "description": "Missing or invalid publishable key"
+          }
+        }
+      }
+    },
+    "/v1/referrer": {
+      "post": {
+        "summary": "Deferred-match resolution from Android Play Install Referrer (deterministic)",
+        "operationId": "resolveReferrer",
+        "tags": [
+          "SDK"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "publishableKey",
+                  "linkId"
+                ],
+                "properties": {
+                  "publishableKey": {
+                    "type": "string",
+                    "example": "st_pub_live_…"
+                  },
+                  "linkId": {
+                    "type": "string",
+                    "description": "strait_link value from the referrer"
+                  },
+                  "platform": {
+                    "type": "string",
+                    "default": "android"
+                  },
+                  "record": {
+                    "type": "boolean",
+                    "description": "false = a read only (SDK checkDeferred): answer the match, record no install, open or webhook. Omit for the real first-launch check."
+                  }
+                }
+              },
+              "example": {
+                "publishableKey": "st_pub_live_…",
+                "linkId": "lnk_5f0c2a8e-3b1d-4f6a-9c7e-2d8b1a0e4f63",
+                "platform": "android"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Match result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchResult"
+                },
+                "example": {
+                  "matched": true,
+                  "longUrl": "https://shop.example.com/sale/summer?utm_source=whatsapp&utm_campaign=summer-2026",
+                  "linkId": "lnk_5f0c2a8e-3b1d-4f6a-9c7e-2d8b1a0e4f63",
+                  "matchMethod": "install_referrer",
+                  "confidence": null,
+                  "clickId": "9a1c7e52-4b3d-4f8e-a6d1-0c2b5e7f9a34",
+                  "reasons": []
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid publishable key"
+          }
+        }
+      }
+    },
+    "/v1/resolve": {
+      "post": {
+        "summary": "Turn a short link that opened your app into its destination",
+        "operationId": "resolveLink",
+        "tags": [
+          "SDK"
+        ],
+        "description": "Called by the SDKs when a verified short link (App Link / Universal Link) opens the app directly. With `openId` the lookup also records the app open and the tap (once per openId); `recorded:false` means retry the report via /v1/open. Old Firebase links (contract B22): on a host that is not Strait's (e.g. acme.page.link), a link imported with that legacyHost + legacyCode is matched first; a long link (`https://<x>.page.link/?link=…`) answers `reason: long_link` (current SDKs read its link= on the device instead).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "publishableKey",
+                  "url"
+                ],
+                "properties": {
+                  "publishableKey": {
+                    "type": "string",
+                    "example": "st_pub_live_…"
+                  },
+                  "url": {
+                    "type": "string",
+                    "example": "https://hilltop.strait.link/summer"
+                  },
+                  "platform": {
+                    "type": "string",
+                    "example": "android"
+                  },
+                  "openId": {
+                    "type": "string"
+                  },
+                  "appState": {
+                    "type": "string",
+                    "enum": [
+                      "closed",
+                      "background",
+                      "foreground"
+                    ]
+                  },
+                  "firstLaunch": {
+                    "type": "boolean"
+                  },
+                  "at": {
+                    "type": "number"
+                  },
+                  "deviceClass": {
+                    "type": "string",
+                    "enum": [
+                      "phone",
+                      "tablet"
+                    ],
+                    "description": "What the app runs on (iPad = tablet), stored on the tap this open records. iPadOS Safari sends a Mac user agent, so browser taps from an iPad count as desktop."
+                  }
+                }
+              },
+              "example": {
+                "publishableKey": "st_pub_live_…",
+                "url": "https://hilltop.strait.link/summer",
+                "platform": "android",
+                "openId": "o_lx3k2a_9f8e7d6c5b4a",
+                "appState": "closed",
+                "firstLaunch": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{ matched, longUrl?, linkId?, slug?, clickId?, reason?, recorded? } — reason: not_found | expired | not_live (scheduled, before go-live) | password_protected | long_link (an old page.link long link: read its link= in the app). clickId (when matched) is the id of the tap this open recorded; send it with conversion events (/v1/event `clickId`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "matched": {
+                      "type": "boolean"
+                    },
+                    "longUrl": {
+                      "type": "string"
+                    },
+                    "linkId": {
+                      "type": "string"
+                    },
+                    "slug": {
+                      "type": "string"
+                    },
+                    "clickId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "enum": [
+                        "not_found",
+                        "expired",
+                        "not_live",
+                        "password_protected",
+                        "long_link"
+                      ]
+                    },
+                    "recorded": {
+                      "type": "boolean",
+                      "description": "With openId: whether the open was recorded (false = retry via /v1/open)."
+                    }
+                  }
+                },
+                "example": {
+                  "matched": true,
+                  "longUrl": "https://shop.example.com/sale/summer?utm_source=whatsapp&utm_campaign=summer-2026",
+                  "linkId": "lnk_5f0c2a8e-3b1d-4f6a-9c7e-2d8b1a0e4f63",
+                  "slug": "summer",
+                  "recorded": true,
+                  "clickId": "9a1c7e52-4b3d-4f8e-a6d1-0c2b5e7f9a34"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "url is not a short link"
+          },
+          "401": {
+            "description": "Missing or invalid key"
+          }
+        }
+      }
+    },
+    "/v1/open": {
+      "post": {
+        "summary": "Report that a link opened the app",
+        "operationId": "reportOpen",
+        "tags": [
+          "SDK"
+        ],
+        "description": "Sent by the Strait SDKs for every link open they cannot report through /v1/resolve, /v1/referrer or /v1/match (browser hand-offs, your own https links), and to retry any open report that failed to send. De-duplicated by `openId`.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "publishableKey",
+                  "openId",
+                  "kind",
+                  "route",
+                  "platform"
+                ],
+                "properties": {
+                  "publishableKey": {
+                    "type": "string",
+                    "example": "st_pub_live_…"
+                  },
+                  "openId": {
+                    "type": "string",
+                    "example": "o_lx3k2a_9f8e7d6c5b4a"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "direct",
+                      "deferred"
+                    ]
+                  },
+                  "route": {
+                    "type": "string",
+                    "enum": [
+                      "app_link",
+                      "custom_scheme",
+                      "install_referrer",
+                      "fingerprint"
+                    ]
+                  },
+                  "appState": {
+                    "type": "string",
+                    "enum": [
+                      "closed",
+                      "background",
+                      "foreground"
+                    ]
+                  },
+                  "platform": {
+                    "type": "string",
+                    "example": "android"
+                  },
+                  "url": {
+                    "type": "string",
+                    "description": "The opened URL (only host + path are stored)"
+                  },
+                  "clickId": {
+                    "type": "string",
+                    "description": "The tap id from strait_click"
+                  },
+                  "linkId": {
+                    "type": "string"
+                  },
+                  "matched": {
+                    "type": "boolean"
+                  },
+                  "reason": {
+                    "type": "string"
+                  },
+                  "firstLaunch": {
+                    "type": "boolean"
+                  },
+                  "at": {
+                    "type": "number",
+                    "description": "When it opened (epoch ms)"
+                  },
+                  "deviceClass": {
+                    "type": "string",
+                    "enum": [
+                      "phone",
+                      "tablet"
+                    ],
+                    "description": "What the app runs on (iPad = tablet), stored on the tap this open records. iPadOS Safari sends a Mac user agent, so browser taps from an iPad count as desktop."
+                  }
+                }
+              },
+              "example": {
+                "publishableKey": "st_pub_live_…",
+                "openId": "o_lx3k2a_9f8e7d6c5b4a",
+                "kind": "direct",
+                "route": "custom_scheme",
+                "appState": "background",
+                "platform": "android",
+                "url": "hilltop://sale/summer",
+                "clickId": "9a1c7e52-4b3d-4f8e-a6d1-0c2b5e7f9a34",
+                "linkId": "lnk_5f0c2a8e-3b1d-4f6a-9c7e-2d8b1a0e4f63",
+                "matched": true,
+                "at": 1790000000000
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Recorded (`duplicate: true` when this openId was already recorded)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "duplicate": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "example": {
+                  "ok": true,
+                  "duplicate": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid fields"
+          },
+          "401": {
+            "description": "Missing or invalid key"
+          },
+          "429": {
+            "description": "Rate limited: per IP (60 burst, 1 a second) or per workspace (600 burst, 10 a second; Retry-After). The SDKs keep the report and retry it, de-duplicated by openId"
+          }
+        }
+      }
+    },
+    "/v1/fdl/rescue": {
+      "post": {
+        "summary": "Read old page.link codes while Google still answers (dashboard)",
+        "operationId": "rescuePageLinks",
+        "tags": [
+          "Links"
+        ],
+        "x-internal": true,
+        "description": "Called by the dashboard importer with the signed-in user's session token (owner, admin or member; never a secret key). For each old https://<x>.page.link/<code>, reads Google's Firebase Dynamic Links debug page (?d=1), an UNDOCUMENTED format that works only while Google still answers, and returns the old long link and its parameters (link, afl/ifl/ofl, st/sd/si, utm_*). Before any code is read, the host's apple-app-site-association or assetlinks.json must name the workspace's own iOS app id (Team ID + bundle ID) or Android package. About 1 Google request per second and 500 a day per workspace; answers cached for an hour.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "tenantId",
+                  "urls"
+                ],
+                "properties": {
+                  "tenantId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "urls": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 10,
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "https://<x>.page.link/<code> links, or bare codes with host"
+                  },
+                  "host": {
+                    "type": "string",
+                    "example": "acme.page.link",
+                    "description": "For bare codes"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "`{ results: [{ input, host, code, status: found | not_found | unreadable | not_your_app | invalid | error | limited, longLink?, fields?, message }], ownership: [{ host, ok, via?, message }], note }`"
+          },
+          "400": {
+            "description": "Bad urls/host, or no_app_config (add your iOS or Android app ids first)"
+          },
+          "401": {
+            "description": "No or expired session"
+          },
+          "403": {
+            "description": "A viewer, or a secret key"
+          },
+          "429": {
+            "description": "A rescue is already running for this workspace"
+          }
+        }
+      }
+    },
+    "/v1/fdl/migrations": {
+      "post": {
+        "summary": "Start the one-step Firebase migration (dashboard)",
+        "operationId": "startFdlMigration",
+        "tags": [
+          "Links"
+        ],
+        "x-internal": true,
+        "description": "Called by the dashboard with the signed-in user's session token (owner, admin or member; never a secret key). Give the old domain (`host`, e.g. acme.page.link), and/or `text`: a pasted list of old short links or codes, a CSV (short_link + destination and FDL parameter columns), or a JSON export (FDL REST `dynamicLinkInfo` objects or `{ shortLink, longLink }`). With a host, the engine also looks the host up in the Internet Archive's public index. Every old link becomes one item per (workspace, host, code); the engine rebuilds them in the background: from the destination given, else (page.link only, and only when the host names the workspace's own app) from Google's undocumented debug page. A second call while a migration is open adds to it; re-runs never make a second link.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "tenantId"
+                ],
+                "properties": {
+                  "tenantId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "host": {
+                    "type": "string",
+                    "example": "acme.page.link"
+                  },
+                  "text": {
+                    "type": "string",
+                    "description": "List, CSV or JSON export as text (up to 20,000 links)"
+                  },
+                  "discover": {
+                    "type": "boolean",
+                    "description": "Search the Internet Archive for the host (default true when host is given)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Added to the open migration: `{ migration, added, requeued, format, skipped, skippedCount }`"
+          },
+          "201": {
+            "description": "Started: `{ migration, added, requeued, format, skipped, skippedCount }`"
+          },
+          "400": {
+            "description": "Nothing to migrate, bad host, or too many links"
+          },
+          "401": {
+            "description": "No or expired session"
+          },
+          "403": {
+            "description": "A viewer, or a secret key"
+          },
+          "503": {
+            "description": "not_ready: migration 0060 is not applied yet"
+          }
+        }
+      },
+      "get": {
+        "summary": "The workspace's latest Firebase migration (dashboard)",
+        "operationId": "getLatestFdlMigration",
+        "tags": [
+          "Links"
+        ],
+        "x-internal": true,
+        "parameters": [
+          {
+            "name": "tenantId",
+            "description": "The workspace (you must be a member)",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "`{ migration: { id, status: running | paused | done, pauseReason?, pauseMessage?, resumeAt?, hosts, discovery, counts: { queued, rebuilt, needs_attention, total }, googleReadsLeftToday, googleDailyMax, … } | null }`"
+          },
+          "401": {
+            "description": "No or expired session"
+          }
+        }
+      }
+    },
+    "/v1/fdl/migrations/{id}": {
+      "get": {
+        "summary": "Firebase migration progress and its links (dashboard)",
+        "operationId": "getFdlMigration",
+        "tags": [
+          "Links"
+        ],
+        "x-internal": true,
+        "parameters": [
+          {
+            "name": "id",
+            "description": "The migration id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "tenantId",
+            "description": "The workspace (you must be a member)",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "status",
+            "description": "Only links in this state",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "queued",
+                "rebuilt",
+                "needs_attention"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "description": "Links per page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            }
+          },
+          {
+            "name": "offset",
+            "description": "Links to skip",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "`{ migration, items: [{ id, oldLink, host, code, source, status, reason?, message?, destination?, destinationFrom?, slug?, shortUrl?, warnings?, attempts }], page }`"
+          },
+          "404": {
+            "description": "Not a migration of this workspace"
+          }
+        }
+      }
+    },
+    "/v1/fdl/migrations/{id}/items/{itemId}": {
+      "patch": {
+        "summary": "Give a needs-attention Firebase link its destination (dashboard)",
+        "operationId": "fixFdlMigrationItem",
+        "tags": [
+          "Links"
+        ],
+        "x-internal": true,
+        "parameters": [
+          {
+            "name": "id",
+            "description": "The migration id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "itemId",
+            "description": "The old link (item) id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "tenantId",
+                  "destination"
+                ],
+                "properties": {
+                  "tenantId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "destination": {
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "androidFallbackUrl": {
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "iosFallbackUrl": {
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "desktopUrl": {
+                    "type": "string",
+                    "format": "uri"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Queued again with the destination: `{ item }`"
+          },
+          "400": {
+            "description": "Not an https address"
+          },
+          "404": {
+            "description": "Not in this migration"
+          },
+          "409": {
+            "description": "Already rebuilt"
+          }
+        }
+      }
+    },
+    "/v1/fdl/migrations/{id}/retry": {
+      "post": {
+        "summary": "Retry the Firebase links that can be retried (dashboard)",
+        "operationId": "retryFdlMigration",
+        "tags": [
+          "Links"
+        ],
+        "x-internal": true,
+        "parameters": [
+          {
+            "name": "id",
+            "description": "The migration id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "tenantId"
+                ],
+                "properties": {
+                  "tenantId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "`{ requeued, migration }` (google_unavailable, google_unreadable, not_your_app, slug_unavailable and error go back in the queue)"
+          },
+          "404": {
+            "description": "Not a migration of this workspace"
+          }
+        }
+      }
+    },
+    "/v1/fdl/migrations/{id}/needs-attention.csv": {
+      "get": {
+        "summary": "The Firebase links still to fill in, as CSV (dashboard)",
+        "operationId": "downloadFdlNeedsAttention",
+        "tags": [
+          "Links"
+        ],
+        "x-internal": true,
+        "description": "Only this workspace's needs-attention links: `short_link,destination,reason,message`. Fill in destination and send the file back to POST /v1/fdl/migrations.",
+        "parameters": [
+          {
+            "name": "id",
+            "description": "The migration id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "tenantId",
+            "description": "The workspace (you must be a member)",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "CSV",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not a migration of this workspace"
+          }
+        }
+      }
+    },
+    "/v1/billing/checkout": {
+      "post": {
+        "summary": "Start a paid subscription (dashboard)",
+        "operationId": "createCheckoutSession",
+        "tags": [
+          "Billing"
+        ],
+        "x-internal": true,
+        "description": "Called by the dashboard with the signed-in user's session token (`Authorization: Bearer <Supabase access token>`). Only a workspace owner may call it. Returns the URL to open: Stripe Checkout, or the dashboard with `?_ptxn=` (Paddle overlay, USD) or `?rzp_subscription=&rzp_key=` (Razorpay Checkout.js, INR). GST details go to Razorpay only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "tenantId",
+                  "plan"
+                ],
+                "properties": {
+                  "tenantId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "plan": {
+                    "type": "string",
+                    "enum": [
+                      "starter",
+                      "scale"
+                    ]
+                  },
+                  "interval": {
+                    "type": "string",
+                    "enum": [
+                      "month",
+                      "year"
+                    ],
+                    "default": "month"
+                  },
+                  "currency": {
+                    "type": "string",
+                    "enum": [
+                      "USD",
+                      "INR"
+                    ],
+                    "default": "USD"
+                  },
+                  "gstin": {
+                    "type": "string",
+                    "description": "INR only: 15-character GSTIN (check digit verified)"
+                  },
+                  "businessName": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "description": "INR only"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "`{ url }` — the checkout to open"
+          },
+          "400": {
+            "description": "Bad tenantId, plan, interval, currency or GSTIN"
+          },
+          "401": {
+            "description": "No or expired session"
+          },
+          "403": {
+            "description": "Not an owner of this workspace"
+          },
+          "409": {
+            "description": "Already subscribed (a Razorpay plan whose renewal failed may subscribe again), or INR isn't open yet"
+          },
+          "503": {
+            "description": "Billing not configured"
+          }
+        }
+      }
+    },
+    "/v1/billing/portal": {
+      "post": {
+        "summary": "Open the billing portal (dashboard)",
+        "operationId": "createBillingPortalSession",
+        "tags": [
+          "Billing"
+        ],
+        "x-internal": true,
+        "description": "Same auth as /v1/billing/checkout. Returns the Stripe or Paddle customer portal URL (card, cancel, invoices). Razorpay has none (409).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "tenantId"
+                ],
+                "properties": {
+                  "tenantId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "`{ url }` — the customer portal"
+          },
+          "401": {
+            "description": "No or expired session"
+          },
+          "403": {
+            "description": "Not an owner of this workspace"
+          },
+          "409": {
+            "description": "No billing account yet, or Razorpay (no portal)"
+          },
+          "503": {
+            "description": "Billing not configured"
+          }
+        }
+      }
+    },
+    "/v1/billing/cancel": {
+      "post": {
+        "summary": "Cancel the paid plan at the period end (dashboard)",
+        "operationId": "cancelBillingSubscription",
+        "tags": [
+          "Billing"
+        ],
+        "x-internal": true,
+        "description": "Same auth as /v1/billing/checkout. The plan stays until the period end; the provider then sends the cancel event. A past-due plan (payment failed) is canceled immediately.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "tenantId"
+                ],
+                "properties": {
+                  "tenantId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "`{ canceled: true, periodEnd }`, or `{ canceled: true, immediate: true, periodEnd: null }` for a past-due plan"
+          },
+          "401": {
+            "description": "No or expired session"
+          },
+          "403": {
+            "description": "Not an owner of this workspace"
+          },
+          "409": {
+            "description": "No paid plan to cancel"
+          },
+          "503": {
+            "description": "Billing not configured"
+          }
+        }
+      }
+    },
+    "/v1/billing/handoff": {
+      "post": {
+        "summary": "Which workspace a Paddle payment link pays for (dashboard)",
+        "operationId": "getBillingHandoff",
+        "tags": [
+          "Billing"
+        ],
+        "x-internal": true,
+        "description": "A signed-in member asks before the dashboard opens the Paddle overlay for `?_ptxn=`: the workspace of the transaction (our verified checkout tag, or its subscription for a card update).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "txn"
+                ],
+                "properties": {
+                  "txn": {
+                    "type": "string",
+                    "pattern": "^txn_[a-z0-9]{1,64}$"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "`{ tenantId, workspace, purpose }` — purpose is 'subscribe' or 'update_payment'"
+          },
+          "400": {
+            "description": "No or malformed txn"
+          },
+          "401": {
+            "description": "No or expired session"
+          },
+          "404": {
+            "description": "Not a transaction of ours, or not for a workspace you're in"
+          },
+          "429": {
+            "description": "More than 10 checks a minute for this user (Retry-After: 60)"
+          },
+          "503": {
+            "description": "Billing not configured"
+          }
+        }
+      }
+    },
+    "/v1/billing/webhook/paddle": {
+      "post": {
+        "summary": "Paddle webhook receiver",
+        "operationId": "receivePaddleWebhook",
+        "tags": [
+          "Billing"
+        ],
+        "x-internal": true,
+        "description": "Verified by `Paddle-Signature` (HMAC over `ts:body`, 300 s tolerance); idempotent by event id.",
+        "responses": {
+          "200": {
+            "description": "Received"
+          },
+          "400": {
+            "description": "Missing or invalid signature"
+          },
+          "503": {
+            "description": "Paddle billing not configured"
+          }
+        }
+      }
+    },
+    "/v1/billing/webhook/razorpay": {
+      "post": {
+        "summary": "Razorpay webhook receiver",
+        "operationId": "receiveRazorpayWebhook",
+        "tags": [
+          "Billing"
+        ],
+        "x-internal": true,
+        "description": "Verified by `X-Razorpay-Signature` (HMAC of the body); idempotent by `X-Razorpay-Event-Id`.",
+        "responses": {
+          "200": {
+            "description": "Received"
+          },
+          "400": {
+            "description": "Missing or invalid signature"
+          },
+          "503": {
+            "description": "Razorpay billing not configured"
+          }
+        }
+      }
+    },
+    "/v1/billing/webhook": {
+      "post": {
+        "summary": "Stripe webhook receiver",
+        "operationId": "receiveStripeWebhook",
+        "tags": [
+          "Billing"
+        ],
+        "x-internal": true,
+        "description": "For Stripe only: verified by the `Stripe-Signature` header; idempotent by event id.",
+        "responses": {
+          "200": {
+            "description": "Received"
+          },
+          "400": {
+            "description": "Missing or invalid signature"
+          },
+          "503": {
+            "description": "Billing not configured"
+          }
+        }
+      }
+    },
+    "/v1/event": {
+      "post": {
+        "summary": "Record a conversion / revenue event",
+        "operationId": "recordEvent",
+        "tags": [
+          "Events"
+        ],
+        "description": "From an app or website send `publishableKey`; from a server you may instead authenticate with the secret key as a Bearer token. `clickId` names the tap the conversion came from: every tap gets a unique id (a UUID, sent with the tap's redirect and passed to your app with the open), which the mobile SDKs remember from the attributed app open and attach for 7 days. It is kept only when it is a tap of this workspace; otherwise it is ignored and the event is still recorded. Each new event (not an eventId retry) is sent to your webhooks subscribed to `app.event`, with `data` and `sentWith` (publishable_key or secret_key: trust revenue sent from your server). Webhook sends for events sent with the publishable key are capped per workspace (600 burst, then 10 a second): past that, they are still recorded but not sent. Events sent with the secret key are not capped.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "event"
+                ],
+                "properties": {
+                  "publishableKey": {
+                    "type": "string",
+                    "example": "st_pub_live_…"
+                  },
+                  "event": {
+                    "type": "string",
+                    "example": "purchase"
+                  },
+                  "value": {
+                    "type": "number"
+                  },
+                  "currency": {
+                    "type": "string",
+                    "example": "USD"
+                  },
+                  "linkId": {
+                    "type": "string",
+                    "description": "Optional: with a known clickId it is filled in from that tap"
+                  },
+                  "platform": {
+                    "type": "string"
+                  },
+                  "clickId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "The id of the tap this conversion came from (the mobile SDKs fill it in)"
+                  },
+                  "eventId": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9_.:-]{1,64}$",
+                    "example": "ord_1001",
+                    "description": "Optional idempotency id, e.g. your order id: a retry with the same eventId is accepted but stored once"
+                  },
+                  "data": {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "maxProperties": 20,
+                    "propertyNames": {
+                      "pattern": "^[A-Za-z0-9_.-]{1,40}$"
+                    },
+                    "additionalProperties": {
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 256
+                        },
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "example": {
+                      "plan": "gold",
+                      "orderId": "ord_1001"
+                    },
+                    "description": "Optional custom key-values (at most 20, 2 KB as JSON) passed to the app.event webhook. Not stored with the event; kept 30 days with the webhook delivery. Do not send personal data your receiver does not need."
+                  }
+                }
+              },
+              "example": {
+                "publishableKey": "st_pub_live_…",
+                "event": "purchase",
+                "value": 499,
+                "currency": "INR",
+                "clickId": "9a1c7e52-4b3d-4f8e-a6d1-0c2b5e7f9a34",
+                "eventId": "ord_1001",
+                "data": {
+                  "plan": "gold"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted. `clickId` echoes the tap id that was stored, or null when none was given or it was not a tap of this workspace.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "clickId": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "uuid"
+                    },
+                    "linkId": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "The linkId kept for this event: yours if it is one of your links, else the clickId tap's link; null when neither (unknown ids are dropped, the event is still recorded)"
+                    }
+                  }
+                },
+                "example": {
+                  "ok": true,
+                  "clickId": "9a1c7e52-4b3d-4f8e-a6d1-0c2b5e7f9a34",
+                  "linkId": "lnk_5f0c2a8e-3b1d-4f6a-9c7e-2d8b1a0e4f63"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid key"
+          }
+        }
+      }
+    },
+    "/v1/report": {
+      "post": {
+        "summary": "Report a malicious link (public)",
+        "operationId": "reportLink",
+        "tags": [
+          "Tools"
+        ],
+        "description": "Report a Strait link used for phishing, malware, spam or a scam. No key needed; limited to 5 reports an hour per IP. Accepts JSON or a plain HTML form post (the /report page on every link host posts here and gets an HTML answer). Reports are reviewed by the Strait team within 24 hours.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "url"
+                ],
+                "properties": {
+                  "url": {
+                    "type": "string",
+                    "maxLength": 2048,
+                    "example": "https://hilltop.strait.link/sale"
+                  },
+                  "category": {
+                    "type": "string",
+                    "enum": [
+                      "phishing",
+                      "malware",
+                      "spam",
+                      "scam",
+                      "other"
+                    ],
+                    "default": "other"
+                  },
+                  "details": {
+                    "type": "string",
+                    "maxLength": 2000
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "description": "Optional, only if you want a reply"
+                  }
+                }
+              },
+              "example": {
+                "url": "https://hilltop.strait.link/sale",
+                "category": "phishing",
+                "details": "The page asked for my bank OTP."
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Received: `{ ok: true, id? }`"
+          },
+          "400": {
+            "description": "`{ error: \"invalid_report\", message }`"
+          },
+          "429": {
+            "description": "`{ error: \"rate_limited\", message }` (Retry-After: 3600)"
+          }
+        }
+      }
+    },
+    "/v1/tools/app-links": {
+      "get": {
+        "summary": "App Links / Universal Links checker (public tool)",
+        "operationId": "checkAppLinks",
+        "tags": [
+          "Tools"
+        ],
+        "description": "Fetches https://<domain>/.well-known/assetlinks.json and /.well-known/apple-app-site-association (plus the legacy /apple-app-site-association) and explains each finding with a severity and a fix. No key needed. Rate-limited (10 per minute per IP); results cached 60 s per domain; CORS only for https://straitlink.in, https://app.straitlink.in and http://localhost:<port>. Only public domains: IP addresses and names that resolve to private/reserved addresses are refused (400). https only, at most 5 redirects, 5 s, 256 KB. It checks the files on the domain, not how a particular phone behaves.",
+        "parameters": [
+          {
+            "name": "domain",
+            "in": "query",
+            "required": true,
+            "description": "A domain (a full URL is accepted and reduced to its host)",
+            "schema": {
+              "type": "string",
+              "example": "example.com"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The report: { domain, checkedAt, android: { status, file, findings[] }, ios: { status, file, legacyFile, findings[] }, note }. Each finding is { id, severity: ok|warn|error, title, detail, fix }; each file is { url, finalUrl, status, contentType, size, redirects[], fetchError, parse, body (≤ 32 KB), bodyTruncated }.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "domain": {
+                      "type": "string"
+                    },
+                    "checkedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "android": {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string"
+                        },
+                        "file": {
+                          "type": "object"
+                        },
+                        "findings": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/AppLinksFinding"
+                          }
+                        }
+                      }
+                    },
+                    "ios": {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string"
+                        },
+                        "file": {
+                          "type": "object"
+                        },
+                        "legacyFile": {
+                          "type": "object"
+                        },
+                        "findings": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/AppLinksFinding"
+                          }
+                        }
+                      }
+                    },
+                    "note": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "domain": "hilltop.strait.link",
+                  "checkedAt": "2026-10-01T10:00:00.000Z",
+                  "android": {
+                    "status": "ok",
+                    "file": {
+                      "url": "https://hilltop.strait.link/.well-known/assetlinks.json",
+                      "finalUrl": "https://hilltop.strait.link/.well-known/assetlinks.json",
+                      "status": 200,
+                      "contentType": "application/json",
+                      "size": 312,
+                      "redirects": [],
+                      "fetchError": null,
+                      "parse": "ok",
+                      "body": "[ … ]",
+                      "bodyTruncated": false
+                    },
+                    "findings": [
+                      {
+                        "id": "android.valid",
+                        "severity": "ok",
+                        "title": "assetlinks.json is valid",
+                        "detail": "com.example.hilltop with 1 SHA-256 fingerprint.",
+                        "fix": ""
+                      }
+                    ]
+                  },
+                  "ios": {
+                    "status": "ok",
+                    "file": {
+                      "url": "https://hilltop.strait.link/.well-known/apple-app-site-association",
+                      "finalUrl": "https://hilltop.strait.link/.well-known/apple-app-site-association",
+                      "status": 200,
+                      "contentType": "application/json",
+                      "size": 204,
+                      "redirects": [],
+                      "fetchError": null,
+                      "parse": "ok",
+                      "body": "{ … }",
+                      "bodyTruncated": false
+                    },
+                    "legacyFile": {
+                      "url": "https://hilltop.strait.link/apple-app-site-association",
+                      "finalUrl": null,
+                      "status": 404,
+                      "contentType": "text/html",
+                      "size": 0,
+                      "redirects": [],
+                      "fetchError": null,
+                      "parse": "not_parsed",
+                      "body": null,
+                      "bodyTruncated": false
+                    },
+                    "findings": [
+                      {
+                        "id": "ios.valid",
+                        "severity": "ok",
+                        "title": "apple-app-site-association is valid",
+                        "detail": "ABCDE12345.com.example.hilltop handles every path.",
+                        "fix": ""
+                      }
+                    ]
+                  },
+                  "note": "This checks the files served by the domain, not how a particular phone behaves."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not a domain, or refused (IP address, local name, private address)"
+          },
+          "422": {
+            "description": "The domain is not in DNS"
+          },
+          "429": {
+            "description": "Rate limited"
+          }
+        }
+      }
+    },
+    "/v1/trace/{st}": {
+      "get": {
+        "summary": "Live Tap Trace (website demo)",
+        "operationId": "getTapTrace",
+        "tags": [
+          "Tools"
+        ],
+        "description": "What the engine decided for one tap of the demo link (demo.strait.link/try?st=<token>), readable for 15 minutes. Public, rate-limited (30 burst, 1/s per IP); CORS only for https://straitlink.in and http://localhost:<port>. Never returns the IP, user agent or workspace. Only the demo workspace stores tokens.",
+        "parameters": [
+          {
+            "name": "st",
+            "in": "path",
+            "required": true,
+            "description": "The session token the demo page generated: the `st` value on the demo link it shows",
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z0-9]{20,32}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The trace",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "tappedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "platform": {
+                      "type": "string",
+                      "enum": [
+                        "ios",
+                        "android",
+                        "desktop"
+                      ]
+                    },
+                    "os": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "example": "Android 14"
+                    },
+                    "deviceClass": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "enum": [
+                        "phone",
+                        "tablet",
+                        "desktop",
+                        null
+                      ]
+                    },
+                    "inAppBrowser": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "example": "instagram"
+                    },
+                    "channel": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "example": "whatsapp"
+                    },
+                    "decision": {
+                      "type": "string",
+                      "enum": [
+                        "redirect",
+                        "interstitial",
+                        "escape"
+                      ]
+                    },
+                    "sentTo": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "enum": [
+                        "app_or_store",
+                        "app_or_website",
+                        "store",
+                        "website",
+                        "app_store_page",
+                        "in_app_browser_page",
+                        "expired",
+                        "store_sheet",
+                        null
+                      ]
+                    },
+                    "clickId": {
+                      "type": "string",
+                      "description": "first 8 characters of the tap id"
+                    },
+                    "decidedMs": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "open": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "at": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "isNewUser": {
+                          "type": "boolean"
+                        },
+                        "appState": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "enum": [
+                            "closed",
+                            "background",
+                            "foreground",
+                            null
+                          ]
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "tappedAt": "2026-10-01T10:00:00.000Z",
+                  "platform": "android",
+                  "os": "Android 14",
+                  "deviceClass": "phone",
+                  "inAppBrowser": "whatsapp",
+                  "channel": "whatsapp",
+                  "decision": "escape",
+                  "sentTo": "in_app_browser_page",
+                  "clickId": "9a1c7e52",
+                  "decidedMs": null,
+                  "open": {
+                    "at": "2026-10-01T10:00:04.000Z",
+                    "isNewUser": false,
+                    "appState": "background"
+                  }
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No tap for this token yet (or it is older than 15 minutes): keep polling"
+          },
+          "404": {
+            "description": "Malformed token"
+          },
+          "429": {
+            "description": "Rate limited"
+          }
+        }
+      }
+    },
+    "/v1/webhooks/{id}/test": {
+      "post": {
+        "summary": "Send a test event to a webhook",
+        "operationId": "testWebhook",
+        "tags": [
+          "Webhooks"
+        ],
+        "description": "Delivers a `ping` event to the webhook right now (even if paused) and returns the receiver's HTTP status and the time it took (never its response body). Not stored or retried. Every delivery is signed: `X-Strait-Signature: t=<unix seconds>,v1=<hex HMAC-SHA256 of \"<t>.<raw body>\" with the webhook secret>` — recompute it and refuse timestamps more than 5 minutes old. It is the only signature header. Other headers: X-Strait-Event, X-Strait-Delivery (stable across retries — de-duplicate on it), X-Strait-Attempt. Events: link.clicked, app.opened, install.matched, referral.converted and app.event (POST /v1/event). Webhook URLs must be public https endpoints: private, loopback, link-local and CGNAT addresses are refused when saved and again at every delivery, when the connection is made (after DNS resolution).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The webhook id (Dashboard → Settings → Webhooks)",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The attempt (delivered or not)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "delivered": {
+                      "type": "boolean"
+                    },
+                    "status": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "description": "Receiver's HTTP status"
+                    },
+                    "error": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "example": "HTTP 500 | timeout | unsafe_target"
+                    },
+                    "durationMs": {
+                      "type": "integer"
+                    },
+                    "deliveryId": {
+                      "type": "string"
+                    },
+                    "event": {
+                      "type": "string",
+                      "enum": [
+                        "ping"
+                      ]
+                    }
+                  }
+                },
+                "example": {
+                  "delivered": true,
+                  "status": 200,
+                  "error": null,
+                  "body": "ok",
+                  "durationMs": 182,
+                  "deliveryId": "test_4f1a9c2e",
+                  "event": "ping"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid secret key"
+          },
+          "404": {
+            "description": "No such webhook in the key's workspace"
+          }
+        }
+      }
+    },
+    "/v1/simulate": {
+      "get": {
+        "summary": "Dry-run a tap (playground)",
+        "operationId": "simulateTap",
+        "tags": [
+          "Tools"
+        ],
+        "description": "What a tap on `url` with this user agent would do — the exact decision the link makes — without recording a tap, firing webhooks or counting toward your plan. Authenticate with your secret key (Bearer) or `publishableKey`; the link must belong to that workspace. Hand-off URLs carry a placeholder tap id (00000000-0000-4000-8000-000000000000).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "url",
+            "in": "query",
+            "required": true,
+            "description": "The full short link, e.g. https://you.strait.link/summer",
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            }
+          },
+          {
+            "name": "ua",
+            "in": "query",
+            "required": true,
+            "description": "A preset (android, iphone, ipad, desktop, instagram-ios, instagram-android, facebook-android, whatsapp-android, bot) or a raw User-Agent",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "publishableKey",
+            "in": "query",
+            "required": false,
+            "description": "Instead of a secret key: the workspace publishable key",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "country",
+            "in": "query",
+            "required": false,
+            "description": "Simulate a tap from this country (ISO 3166-1 alpha-2, e.g. IN) to test the link's countryRules. Real taps use Cloudflare's country.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z]{2}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The decision",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "decision": {
+                      "type": "string",
+                      "enum": [
+                        "redirect",
+                        "interstitial",
+                        "escape",
+                        "preview",
+                        "expired",
+                        "not_live",
+                        "blocked"
+                      ],
+                      "description": "preview = link-preview bots and requests without a browser user agent: the preview card, never a redirect, never billed. not_live = before the link's startsAt: not recorded, never billed"
+                    },
+                    "sentTo": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "enum": [
+                        "app_or_store",
+                        "app_or_website",
+                        "store",
+                        "website",
+                        "app_store_page",
+                        "in_app_browser_page",
+                        "expired",
+                        "store_sheet",
+                        null
+                      ]
+                    },
+                    "location": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "Redirect target, or the page's main button target (App Store / \"Open in app\" intent)"
+                    },
+                    "expiredTo": {
+                      "type": "string",
+                      "enum": [
+                        "page",
+                        "store",
+                        "url"
+                      ],
+                      "description": "decision expired only: where the tap goes (page = 410 expired page; store / url = 302 to location)"
+                    },
+                    "expiredSetting": {
+                      "type": "object",
+                      "description": "decision expired only: the setting that applied",
+                      "properties": {
+                        "action": {
+                          "type": "string",
+                          "enum": [
+                            "page",
+                            "store",
+                            "url"
+                          ]
+                        },
+                        "from": {
+                          "type": "string",
+                          "enum": [
+                            "link",
+                            "workspace"
+                          ]
+                        }
+                      }
+                    },
+                    "notLiveTo": {
+                      "type": "string",
+                      "enum": [
+                        "page",
+                        "store",
+                        "url"
+                      ],
+                      "description": "decision not_live only: where the tap goes (page = the \"Coming soon\" page; store / url = 302 to location)"
+                    },
+                    "country": {
+                      "type": "string",
+                      "description": "The simulated country, when ?country= was given"
+                    },
+                    "countryRule": {
+                      "type": "boolean",
+                      "description": "With ?country=: true when one of the link's countryRules matched (the web destination is the rule's url)"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "example": "App not on Google Play, Automatic chose website: opens the app if installed, otherwise the website"
+                    },
+                    "platform": {
+                      "type": "string",
+                      "enum": [
+                        "ios",
+                        "android",
+                        "desktop"
+                      ]
+                    },
+                    "deviceClass": {
+                      "type": "string",
+                      "enum": [
+                        "phone",
+                        "tablet",
+                        "desktop"
+                      ]
+                    },
+                    "inAppBrowser": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "isBot": {
+                      "type": "boolean",
+                      "description": "true for link-preview bots and requests without a browser user agent (scripts, curl, no user agent): they get the preview page, counted as a preview, never billed"
+                    },
+                    "userAgent": {
+                      "type": "string"
+                    },
+                    "slug": {
+                      "type": "string"
+                    },
+                    "passwordProtected": {
+                      "type": "boolean"
+                    },
+                    "abTest": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "example": {
+                  "decision": "redirect",
+                  "sentTo": "app_or_store",
+                  "location": "intent://sale/summer#Intent;scheme=https;package=com.example.hilltop;end",
+                  "reason": "App on Google Play: opens the app if installed, otherwise the Play Store",
+                  "platform": "android",
+                  "deviceClass": "phone",
+                  "inAppBrowser": null,
+                  "isBot": false,
+                  "userAgent": "Mozilla/5.0 (Linux; Android 14; Pixel 8) …",
+                  "slug": "summer",
+                  "passwordProtected": false,
+                  "abTest": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing/invalid url or ua"
+          },
+          "401": {
+            "description": "No valid key"
+          },
+          "404": {
+            "description": "No such link in the key's workspace"
+          }
+        }
+      }
+    },
+    "/v1/export": {
+      "get": {
+        "summary": "Export everything",
+        "operationId": "exportData",
+        "tags": [
+          "Export"
+        ],
+        "description": "Everything your workspace needs to leave Strait, streamed as a download. Auth: a secret key (a publishable key gets 401), or `token` from POST /v1/export/token (one use, 60 seconds; this is how the dashboard downloads). `part=links`: NDJSON, one link per line (active and inactive). `part=taps`: CSV of every tap joined to its first app open and install, oldest first, no date cap. `part=events`: CSV of every conversion / revenue event, oldest first; channel, campaign and variant come from the tap the event is attributed to (when it has a click_id). `part=webhooks`: JSON of your webhook configuration (url, events, active, createdAt) — signing secrets are never exported. `part=worker`: a single-file Cloudflare Worker (`export default { fetch }`) that keeps your active links redirecting by device (Android / iPhone-iPad / desktop) without Strait.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "part",
+            "in": "query",
+            "required": true,
+            "description": "What to export: `links` (NDJSON), `taps` (CSV), `events` (CSV), `webhooks` (JSON) or `worker` (JavaScript). Optional with `token` (the token carries it).",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "links",
+                "taps",
+                "events",
+                "webhooks",
+                "worker"
+              ]
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "description": "taps / events: inclusive start, ISO date or epoch ms",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "description": "taps / events: exclusive end, ISO date or epoch ms",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "token",
+            "in": "query",
+            "required": false,
+            "description": "A one-time download token from POST /v1/export/token, instead of the Authorization header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The export, as a download (Content-Disposition: attachment)",
+            "content": {
+              "application/x-ndjson": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "{\"id\":\"lnk_5f0c2a8e-…\",\"slug\":\"summer\",\"longUrl\":\"https://shop.example.com/sale/summer\",\"active\":true}\n"
+              },
+              "text/csv": {
+                "schema": {
+                  "type": "string",
+                  "description": "taps columns: click_id, clicked_at, link_id, slug, source, platform, device_class, os_major, in_app_browser, channel, sent_to, campaign, variant, billable, opened_at, open_kind, open_route, app_state, is_new_user, opens, installed_at, install_matched, match_method. device_class: phone | tablet | desktop (iPadOS Safari sends a Mac user agent, so a browser tap from an iPad is desktop; app-link taps carry what the app reports). sent_to: app_or_store | app_or_website | store | website | app_store_page | in_app_browser_page | expired (a tap on an expired link: answered 410, billable=false) | store_sheet (an in-app store sheet, new, billable=false). channel: the tap URL utm_source, else the destination's utm_source, else the in-app browser (whatsapp, instagram…), else the referrer. events columns: created_at, name, value, currency, platform, link_id, slug, click_id, channel, campaign, variant."
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "part=webhooks",
+                  "properties": {
+                    "exportedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "webhooks": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "url": {
+                            "type": "string"
+                          },
+                          "events": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "active": {
+                            "type": "boolean"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "application/javascript": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unknown part, a bad from / to, or a token issued for another part"
+          },
+          "401": {
+            "description": "Missing or invalid secret key, or an expired / used token"
+          }
+        }
+      }
+    },
+    "/v1/export/token": {
+      "post": {
+        "summary": "Get a one-time export download link",
+        "operationId": "createExportToken",
+        "tags": [
+          "Export"
+        ],
+        "description": "Issues a token for one download of one export part: GET /v1/export?part=…&token=… works once, within 60 seconds, with no Authorization header — so a browser can save a large export directly to disk. Only the token hash is stored. Used by the dashboard (a signed-in owner or admin); a secret key works too.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "part"
+                ],
+                "properties": {
+                  "part": {
+                    "type": "string",
+                    "enum": [
+                      "links",
+                      "taps",
+                      "events",
+                      "webhooks",
+                      "worker"
+                    ]
+                  },
+                  "from": {
+                    "type": "string",
+                    "description": "taps / events: inclusive start"
+                  },
+                  "to": {
+                    "type": "string",
+                    "description": "taps / events: exclusive end"
+                  }
+                }
+              },
+              "example": {
+                "part": "taps",
+                "from": "2026-09-01",
+                "to": "2026-10-01"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "token": {
+                      "type": "string",
+                      "example": "stx_…"
+                    },
+                    "part": {
+                      "type": "string"
+                    },
+                    "expiresAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "path": {
+                      "type": "string",
+                      "example": "/v1/export?part=events&token=stx_…"
+                    }
+                  }
+                },
+                "example": {
+                  "token": "stx_…",
+                  "part": "taps",
+                  "expiresAt": "2026-10-01T10:01:00.000Z",
+                  "path": "/v1/export?part=taps&token=stx_…"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unknown part or a bad from / to"
+          },
+          "401": {
+            "description": "Missing or invalid secret key"
+          }
+        }
+      }
+    },
+    "/v1/domains": {
+      "get": {
+        "summary": "List the workspace's custom domains",
+        "operationId": "listDomains",
+        "tags": [
+          "Domains"
+        ],
+        "description": "Every custom domain with its live status and the DNS records to add. Any member may read. A domain turns `verified` here, on the first read after Cloudflare reports it live and its ownership TXT record is in DNS. Limited to 20 reads, then 1 every 2 s, per workspace (429 with Retry-After).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "query",
+            "required": false,
+            "description": "The workspace. Required with a dashboard session; with a secret key it is the key's workspace (another id is 404).",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The domains, and whether custom domains are switched on for this workspace",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "enabled": {
+                      "type": "boolean",
+                      "description": "false until custom domains are switched on (then add answers 503)"
+                    },
+                    "writes": {
+                      "type": "boolean",
+                      "description": "false while domains are read-only (add saves the row only, remove is refused)"
+                    },
+                    "allowed": {
+                      "type": "boolean",
+                      "description": "true on Scale and Enterprise"
+                    },
+                    "cnameTarget": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "example": "fallback.strait.link"
+                    },
+                    "max": {
+                      "type": "integer",
+                      "example": 5
+                    },
+                    "domains": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Domain"
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "enabled": true,
+                  "writes": true,
+                  "allowed": true,
+                  "cnameTarget": "fallback.strait.link",
+                  "max": 5,
+                  "domains": [
+                    {
+                      "hostname": "links.hilltop.example",
+                      "verified": true,
+                      "status": "live",
+                      "records": [
+                        {
+                          "type": "CNAME",
+                          "name": "links.hilltop.example",
+                          "value": "fallback.strait.link",
+                          "purpose": "Sends your links to Strait"
+                        },
+                        {
+                          "type": "TXT",
+                          "name": "_cf-custom-hostname.links.hilltop.example",
+                          "value": "5cc07c04-ea62-4a5a-95f0-419334a875a4",
+                          "purpose": "Proves you own the domain"
+                        },
+                        {
+                          "type": "TXT",
+                          "name": "_acme-challenge.links.hilltop.example",
+                          "value": "ca3-574923932a82475cb8592200f1a2a23d",
+                          "purpose": "Lets us issue its HTTPS certificate"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "tenantId missing (dashboard session)"
+          },
+          "401": {
+            "description": "Missing or invalid secret key or session"
+          },
+          "404": {
+            "description": "Not a member of this workspace"
+          },
+          "429": {
+            "description": "Too many status reads"
+          }
+        }
+      },
+      "post": {
+        "summary": "Add a custom domain",
+        "operationId": "addDomain",
+        "tags": [
+          "Domains"
+        ],
+        "description": "Adds a subdomain you own (for example links.yourcompany.com) and creates it at Cloudflare. The answer lists the DNS records to add: a CNAME to the target, a TXT record that proves you own the domain, and a TXT record for the HTTPS certificate. Owners, admins and members; Scale and Enterprise only; at most 5 per workspace. Adds and removes share a limit of 10, then 1 every 6 minutes, per workspace.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "hostname"
+                ],
+                "properties": {
+                  "tenantId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "Required with a dashboard session"
+                  },
+                  "hostname": {
+                    "type": "string",
+                    "description": "A subdomain, without https:// or a path"
+                  }
+                }
+              },
+              "example": {
+                "hostname": "links.hilltop.example"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Added; add the DNS records shown",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Domain"
+                },
+                "example": {
+                  "hostname": "links.hilltop.example",
+                  "verified": false,
+                  "status": "pending_dns",
+                  "records": [
+                    {
+                      "type": "CNAME",
+                      "name": "links.hilltop.example",
+                      "value": "fallback.strait.link",
+                      "purpose": "Sends your links to Strait"
+                    },
+                    {
+                      "type": "TXT",
+                      "name": "_cf-custom-hostname.links.hilltop.example",
+                      "value": "5cc07c04-ea62-4a5a-95f0-419334a875a4",
+                      "purpose": "Proves you own the domain"
+                    },
+                    {
+                      "type": "TXT",
+                      "name": "_acme-challenge.links.hilltop.example",
+                      "value": "ca3-574923932a82475cb8592200f1a2a23d",
+                      "purpose": "Lets us issue its HTTPS certificate"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not a usable hostname (a bare domain, an IP, one of our hosts, or malformed)"
+          },
+          "401": {
+            "description": "Missing or invalid secret key or session"
+          },
+          "402": {
+            "description": "plan_required: custom domains are part of the Scale plan"
+          },
+          "403": {
+            "description": "Viewers cannot add domains"
+          },
+          "409": {
+            "description": "Already added to a Strait workspace, or the workspace already has 5"
+          },
+          "429": {
+            "description": "Too many domain changes (Retry-After: 360)"
+          },
+          "502": {
+            "description": "Cloudflare didn't answer; nothing was saved"
+          },
+          "503": {
+            "description": "domains_not_enabled, or domains_read_only"
+          }
+        }
+      }
+    },
+    "/v1/domains/{hostname}": {
+      "delete": {
+        "summary": "Remove a custom domain",
+        "operationId": "removeDomain",
+        "tags": [
+          "Domains"
+        ],
+        "description": "Deletes the hostname at Cloudflare, then the domain; links stop working on it. Then delete the CNAME and TXT records at your DNS provider. Owners, admins and members. Shares the add limit (10, then 1 every 6 minutes).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "hostname",
+            "in": "path",
+            "required": true,
+            "description": "The domain to remove",
+            "schema": {
+              "type": "string"
+            },
+            "example": "links.hilltop.example"
+          },
+          {
+            "name": "tenantId",
+            "in": "query",
+            "required": false,
+            "description": "Required with a dashboard session",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Removed"
+          },
+          "401": {
+            "description": "Missing or invalid secret key or session"
+          },
+          "403": {
+            "description": "Viewers cannot remove domains"
+          },
+          "404": {
+            "description": "No such domain in this workspace"
+          },
+          "429": {
+            "description": "Too many domain changes (Retry-After: 360)"
+          },
+          "502": {
+            "description": "Cloudflare didn't answer; the domain is still listed"
+          },
+          "503": {
+            "description": "domains_read_only: removing is switched off right now"
+          }
+        }
+      }
+    },
+    "/v1/webhooks/{id}/deliveries": {
+      "get": {
+        "summary": "List a webhook's deliveries",
+        "operationId": "listWebhookDeliveries",
+        "tags": [
+          "Webhooks"
+        ],
+        "description": "Delivery history, newest first: every event sent to this webhook with its status (`pending` = waiting for a retry, `delivered`, `failed` = gave up after 6 attempts), attempts, the last HTTP status or error, and when the next retry is due. Payloads are not returned. History is kept 30 days.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The webhook id",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "1–100, default 20",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "nextCursor from the previous page",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of deliveries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "deliveries": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/WebhookDelivery"
+                      }
+                    },
+                    "nextCursor": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  }
+                },
+                "example": {
+                  "deliveries": [
+                    {
+                      "id": "3c9e1a7b-5d2f-4e8a-b6c1-9f0d2e4a7b58",
+                      "webhookId": "7f3e2c1a-9b4d-4e8f-a6c5-2d1b0e9f8a73",
+                      "event": "link.clicked",
+                      "status": "failed",
+                      "attempts": 6,
+                      "lastStatus": 500,
+                      "lastError": "HTTP 500",
+                      "nextAttemptAt": null,
+                      "createdAt": "2026-10-01T10:00:00.000Z",
+                      "deliveredAt": null
+                    }
+                  ],
+                  "nextCursor": null
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad limit or cursor"
+          },
+          "401": {
+            "description": "Missing or invalid secret key"
+          },
+          "404": {
+            "description": "No such webhook in the key's workspace"
+          }
+        }
+      }
+    },
+    "/v1/webhook-deliveries/{id}/redeliver": {
+      "post": {
+        "summary": "Redeliver a webhook delivery",
+        "operationId": "redeliverWebhookDelivery",
+        "tags": [
+          "Webhooks"
+        ],
+        "description": "Re-queues one delivery (typically `failed`, after all retries) and sends it right away to the webhook's current URL, with the same X-Strait-Delivery id. Its attempt count starts over, so it gets the full retry schedule again. Refused (409) when it was already delivered, or while it is being sent (younger than 2 minutes, or claimed by a worker right now).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The delivery id (from the deliveries list)",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The delivery after the new attempt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookDelivery"
+                },
+                "example": {
+                  "id": "3c9e1a7b-5d2f-4e8a-b6c1-9f0d2e4a7b58",
+                  "webhookId": "7f3e2c1a-9b4d-4e8f-a6c5-2d1b0e9f8a73",
+                  "event": "link.clicked",
+                  "status": "delivered",
+                  "attempts": 1,
+                  "lastStatus": 200,
+                  "lastError": null,
+                  "nextAttemptAt": null,
+                  "createdAt": "2026-10-01T10:00:00.000Z",
+                  "deliveredAt": "2026-10-01T10:05:00.000Z"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid secret key"
+          },
+          "404": {
+            "description": "No such delivery in the key's workspace"
+          },
+          "409": {
+            "description": "Already delivered, or being sent right now"
+          }
+        }
+      }
+    }
+  }
+}
