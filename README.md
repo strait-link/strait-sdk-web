@@ -34,6 +34,25 @@ Deep linking for the web: deferred match + attribution, in a few lines.
 The device signature is kept in lockstep with the server and the other app SDKs via shared golden
 vectors (this package runs the same vectors in CI), so a change that would make them drift fails the tests.
 
+## Quick start (60 seconds)
+
+**1. Install.**
+
+```sh
+npm install @straitlink/web
+```
+
+**2. Ask once, on page load.** The publishable key (`st_pub_live_…`) is in **Dashboard → Get started** and is safe in web pages.
+
+```ts
+import { resolveDeferredLink } from '@straitlink/web';
+
+const result = await resolveDeferredLink({ publishableKey: 'st_pub_live_…', endpoint: 'https://<your-handle>.strait.link' });
+console.log(result);
+```
+
+**You should see:** `{ matched: false, matchMethod: 'none', … }` in the console, and one `POST /v1/match` answering `200` in **DevTools → Network**. A browser that tapped one of your links shortly before gets `matched: true` and the link's `longUrl`.
+
 ## Platform features
 
 | Feature | Status | Notes |
