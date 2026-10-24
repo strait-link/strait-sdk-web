@@ -20,3 +20,6 @@ jobs:
       - run: node scripts/spec-vectors.mjs
       - run: node scripts/brand.mjs
       - run: npm run tokens
+      - name: Build the example app against this repo (examples/web)
+        working-directory: examples/web
+        run: npm ci && npm run build

@@ -1,0 +1,16 @@
+{
+  "name": "strait-example-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@straitlink/web": "file:../.."
+  },
+  "devDependencies": {
+    "vite": "7.3.7"
+  }
+}

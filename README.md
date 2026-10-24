@@ -161,6 +161,14 @@ Preview every option locally: `npm run build`, serve the repo root, open `exampl
 | `computeSignature(inputs)` | the canonical signature (advanced/testing) |
 | `h32(s)` | the canonical hash (advanced/testing) |
 
+## Example app
+
+[`examples/web`](examples/web) (Vite) routes on the deep link, resolves the deferred link and logs a `purchase` event, built against this repo's source (CI builds it on every PR). [`examples/banner.html`](examples/banner.html) previews the smart banner.
+
+1. `npm ci` here, then `cd examples/web && npm ci`.
+2. `cp .env.example .env` and set your publishable key (`st_pub_…`).
+3. `npm run dev`, then open `http://localhost:5173/product/42`.
+
 ## Docs and support
 
 - **Docs:** [straitlink.in/docs/sdks/web/](https://straitlink.in/docs/sdks/web/) · [platform status](https://straitlink.in/platform-status/) · [troubleshooting](https://straitlink.in/docs/troubleshooting/)
