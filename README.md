@@ -59,6 +59,7 @@ console.log(result);
 |---|---|---|
 | Web links open the right page | ● Live | Handled by Strait; nothing to install. |
 | Deferred match on first visit (`resolveDeferredLink`) | ◐ Beta | At most once per browser. Never throws. |
+| Link opens on your website (`reportWebOpen`) | ◐ Beta | Counts a page view as an open only when the URL carries `strait_click` (a landing from a Strait tap), joined to that tap. Needs the engine release that adds the tap id to web landings (on by default; turn it off per workspace or per link). |
 | Smart app banner for mobile web (`banner`) | ◐ Beta | Styled with the Strait design system, light and dark. No requests of its own (apart from loading your `icon`), no cookies. [Docs](https://straitlink.in/docs/smart-banner/) |
 | iPhone install matching | Opt-in | Off until you choose it; proven on iPhone simulators, the real-iPhone run waits on our App Store listing. Runs in your app through the native SDKs, not in this package. Your choice in Dashboard → Settings → iPhone installs: device matching, paste handoff, both or neither, read from Strait at runtime. Device matching is off by default. iPhone matches are labelled Estimated until measured. |
 | Published on npm | ● Live | `npm install @straitlink/web` |
@@ -101,6 +102,24 @@ call it, because it reads `window.screen`.
 
 When the matched tap carried a referral code, the result also has `referralCode`
 (preview, not switched on yet; contract B21). It is absent otherwise.
+
+### Count opens on your website
+
+When Strait sends a tap to your website it adds the tap id to the URL
+(`?strait_click=<tap id>`, next to your own parameters such as UTMs). Call `reportWebOpen`
+on page load and that landing is recorded as a link open, joined to the tap, in your dashboard:
+
+```ts
+import { reportWebOpen } from '@straitlink/web';
+
+const open = await reportWebOpen({ publishableKey: 'st_pub_live_…', endpoint: 'https://<your-handle>.strait.link' });
+// open.clickId: the tap this visit came from (pass it as clickId with conversion events)
+```
+
+A visit without `strait_click` (typed URL, reload of a plain page, internal navigation) reports
+nothing. A reload or a shared copy of a landing URL is counted once (the open id comes from the
+tap id). It never throws. If your site rejects unknown query parameters, turn the tap id off for
+the workspace or for one link (`webTapId: false` on the link API).
 
 ### What it sends
 
@@ -157,6 +176,7 @@ Preview every option locally: `npm run build`, serve the repo root, open `exampl
 | export | purpose |
 |--------|---------|
 | `resolveDeferredLink(config, opts?)` | the one call you need on launch |
+| `reportWebOpen(config, opts?)` | on page load: records a landing from a Strait tap (`strait_click` in the URL) as an open; `{ reported, clickId? }` |
 | `banner(options)` / `Strait.banner(options)` | smart app banner for mobile web; returns `{ element, dismiss, remove }` or `null` when not shown |
 | `computeSignature(inputs)` | the canonical signature (advanced/testing) |
 | `h32(s)` | the canonical hash (advanced/testing) |
@@ -169,8 +189,9 @@ Measured 25 Oct 2026 on 0.6.3.
 |---|---|---|
 | npm package | 12.5 KB download, 33 KB unpacked, no dependencies | `npm pack --dry-run` |
 | In your bundle, `resolveDeferredLink` only | 1.4 KB minified, 0.8 KB gzip | esbuild 0.25 `--bundle --minify`, tree-shaken |
+| In your bundle, `reportWebOpen` only (Unreleased) | 1.4 KB minified, 0.8 KB gzip | same, measured on this branch |
 | In your bundle, `banner` only | 5.1 KB minified, 2.6 KB gzip | same |
-| Everything | 7.5 KB minified, 3.7 KB gzip | same, whole entry |
+| Everything | 7.5 KB minified, 3.7 KB gzip (8.7 KB / 4.1 KB with `reportWebOpen`) | same, whole entry |
 | Start-up | 1.5 ms to load the module, no set-up call | fresh Node 26 process on an M-series Mac, median of 25 |
 
 ## Example app
