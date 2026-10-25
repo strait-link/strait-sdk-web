@@ -161,6 +161,18 @@ Preview every option locally: `npm run build`, serve the repo root, open `exampl
 | `computeSignature(inputs)` | the canonical signature (advanced/testing) |
 | `h32(s)` | the canonical hash (advanced/testing) |
 
+## Size and speed
+
+Measured 25 Oct 2026 on 0.6.3.
+
+| What | Size or time | How it was measured |
+|---|---|---|
+| npm package | 12.5 KB download, 33 KB unpacked, no dependencies | `npm pack --dry-run` |
+| In your bundle, `resolveDeferredLink` only | 1.4 KB minified, 0.8 KB gzip | esbuild 0.25 `--bundle --minify`, tree-shaken |
+| In your bundle, `banner` only | 5.1 KB minified, 2.6 KB gzip | same |
+| Everything | 7.5 KB minified, 3.7 KB gzip | same, whole entry |
+| Start-up | 1.5 ms to load the module, no set-up call | fresh Node 26 process on an M-series Mac, median of 25 |
+
 ## Example app
 
 [`examples/web`](examples/web) (Vite) routes on the deep link, resolves the deferred link and logs a `purchase` event, built against this repo's source (CI builds it on every PR). [`examples/banner.html`](examples/banner.html) previews the smart banner.
