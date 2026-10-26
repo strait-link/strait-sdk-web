@@ -1,11 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.7.0 (26 Oct 2026)
 
 - `reportWebOpen(config, opts?)`: on page load, a URL carrying `strait_click` (the tap id the engine
   adds to web landings, engine ADR 0064) is reported as one open joined to that tap
   (`POST /v1/open`, platform `web`, openId `web-<tap id>` so reloads count once). Without
-  `strait_click` nothing is reported. Release after the engine change is live.
+  `strait_click` nothing is reported. Needs the engine change (live since 26 Oct 2026).
 
 ## 0.6.3
 
