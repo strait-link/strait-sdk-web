@@ -127,5 +127,77 @@ function trimSlash(s: string): string {
   return s.replace(/\/+$/, '');
 }
 
-/** Namespace form: `Strait.banner({...})`, `Strait.resolveDeferredLink({...})`. */
-export const Strait = { banner, resolveDeferredLink };
+const TAP_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * The tap id (`strait_click`) in a URL's query, and the URL without it (every other byte kept).
+ * Same rule as the app SDKs' `takeClickId`: the last valid id wins; invalid ones are dropped.
+ */
+function takeTapId(raw: string): { url: string; clickId: string | null } {
+  const hash = raw.indexOf('#');
+  const base = hash < 0 ? raw : raw.slice(0, hash);
+  const frag = hash < 0 ? '' : raw.slice(hash);
+  const q = base.indexOf('?');
+  if (q < 0) return { url: raw, clickId: null };
+  let clickId: string | null = null;
+  const kept = base
+    .slice(q + 1)
+    .split('&')
+    .filter((pair) => {
+      const i = pair.indexOf('=');
+      if (pair.slice(0, i < 0 ? pair.length : i) !== 'strait_click') return true;
+      const v = i < 0 ? '' : pair.slice(i + 1);
+      if (TAP_ID.test(v)) clickId = v.toLowerCase();
+      return false;
+    });
+  return { url: base.slice(0, q) + (kept.length ? `?${kept.join('&')}` : '') + frag, clickId };
+}
+
+export interface WebOpenResult {
+  /** true when the engine took the report (2xx; a repeat of the same landing is a no-op there). */
+  reported: boolean;
+  /** The tap this page view came from, when the URL carried one; pass it as `clickId` with conversion events. */
+  clickId?: string;
+}
+
+/**
+ * Call on page load. Counts this page view as a link open ONLY when the page URL carries
+ * `strait_click` (the tap id the engine adds when it sends a tap to your website), and joins it
+ * to that tap. A plain visit reports nothing. The open id is derived from the tap id, so a reload
+ * or a shared copy of the URL is counted once. Never throws.
+ */
+export async function reportWebOpen(config: StraitConfig, opts: { url?: string } = {}): Promise<WebOpenResult> {
+  const href = opts.url ?? (globalThis as { location?: { href?: string } }).location?.href ?? '';
+  const { url, clickId } = takeTapId(href);
+  if (!clickId) return { reported: false };
+  if (!isSafeEndpoint(config.endpoint)) {
+    console.warn(`Strait: endpoint must use https:// (got "${config.endpoint}"); plain http is only allowed for localhost, 127.0.0.1 and ::1. Skipping the open report.`);
+    return { reported: false, clickId };
+  }
+  const doFetch = config.fetch ?? globalThis.fetch;
+  try {
+    const res = await doFetch(`${trimSlash(config.endpoint)}/v1/open`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      // keepalive: the report survives the visitor navigating away right after load.
+      keepalive: true,
+      body: JSON.stringify({
+        publishableKey: config.publishableKey,
+        openId: `web-${clickId}`,
+        kind: 'direct',
+        route: 'app_link',
+        platform: 'web',
+        url,
+        clickId,
+        matched: true,
+        firstLaunch: false,
+      }),
+    });
+    return { reported: res.ok, clickId };
+  } catch {
+    return { reported: false, clickId };
+  }
+}
+
+/** Namespace form: `Strait.banner({...})`, `Strait.resolveDeferredLink({...})`, `Strait.reportWebOpen({...})`. */
+export const Strait = { banner, resolveDeferredLink, reportWebOpen };
