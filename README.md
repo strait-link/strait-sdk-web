@@ -103,6 +103,9 @@ call it, because it reads `window.screen`.
 When the matched tap carried a referral code, the result also has `referralCode`
 (preview, not switched on yet; contract B21). It is absent otherwise.
 
+A match also has `match`, how the engine matched and how sure it is, e.g. `{ method: 'fingerprint', confidence: 'probable' }`:
+why this visit was attributed. It is absent when there is no match.
+
 ### Count opens on your website
 
 When Strait sends a tap to your website it adds the tap id to the URL
