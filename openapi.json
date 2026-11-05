@@ -37,7 +37,7 @@
     },
     {
       "name": "Domains",
-      "description": "Custom link domains (Scale and Enterprise, up to 5 per workspace): add one, read the DNS records and its status, remove it (secret key or dashboard session)."
+      "description": "Custom link domains (Starter and up, up to 5 per workspace): add one, read the DNS records and its status, remove it (secret key or dashboard session)."
     },
     {
       "name": "Export",
@@ -903,6 +903,33 @@
           }
         }
       },
+      "MatchInfo": {
+        "type": "object",
+        "required": [
+          "method",
+          "confidence"
+        ],
+        "properties": {
+          "method": {
+            "type": "string",
+            "enum": [
+              "install_referrer",
+              "clipboard",
+              "fingerprint",
+              "test"
+            ]
+          },
+          "confidence": {
+            "type": "string",
+            "enum": [
+              "exact",
+              "high",
+              "probable"
+            ]
+          }
+        },
+        "description": "Present only when matched (absent otherwise, never null): how this install was matched and how sure we are, in plain terms. install_referrer / clipboard = exact (Google Play or a single-use paste token named the tap). fingerprint = an iPhone device-signal match (matchMethod exact_ext or exact_core): probable, because two people with the same iPhone model on one network look alike; high is reserved for the scored matcher's top band once it is enabled. test = a test-mode answer (always probable: the newest tap in the window, not proof of this device). Gate sensitive deep links (referral rewards, invites) on exact. Can be absent on a replay of an install recorded before Oct 2026. matchMethod and confidence are unchanged."
+      },
       "MatchResult": {
         "type": "object",
         "properties": {
@@ -945,6 +972,9 @@
               null
             ],
             "description": "Scored matches only (matchMethod 'scored'): 'high' or 'medium'. Null for every other answer of /v1/match."
+          },
+          "match": {
+            "$ref": "#/components/schemas/MatchInfo"
           },
           "clickId": {
             "type": "string",
@@ -1173,7 +1203,7 @@
             }
           },
           "400": {
-            "description": "Invalid field, destination_blocked (a URL failed the unsafe-destination check), or invalid_idempotency_key"
+            "description": "Invalid field, destination_blocked (a URL failed the unsafe-destination check; `field` names which one, e.g. `iosFallbackUrl` or `variants[1].url`), or invalid_idempotency_key"
           },
           "401": {
             "description": "Missing or invalid secret key"
@@ -1286,6 +1316,10 @@
                           "reason": {
                             "type": "string",
                             "description": "For destination_blocked and plan limits."
+                          },
+                          "field": {
+                            "type": "string",
+                            "description": "For destination_blocked: the field holding the listed URL (longUrl, iosFallbackUrl, androidFallbackUrl, desktopUrl, expiredUrl, notLiveUrl, countryRules[i].url, variants[i].url)."
                           }
                         }
                       }
@@ -1601,7 +1635,7 @@
             }
           },
           "400": {
-            "description": "Invalid field, isActive sent with other fields, or destination_blocked (a URL failed the unsafe-destination check; with isActive: true the link stays paused)"
+            "description": "Invalid field, isActive sent with other fields, or destination_blocked (a URL failed the unsafe-destination check; `field` names which one; with isActive: true the link stays paused)"
           },
           "404": {
             "description": "Not found (with isActive: true: no paused or active link with this slug)"
@@ -2913,7 +2947,11 @@
                   "clickId": "9a1c7e52-4b3d-4f8e-a6d1-0c2b5e7f9a34",
                   "reasons": [
                     "exact_ext"
-                  ]
+                  ],
+                  "match": {
+                    "method": "fingerprint",
+                    "confidence": "probable"
+                  }
                 }
               }
             }
@@ -2998,7 +3036,11 @@
                   "clickId": "9a1c7e52-4b3d-4f8e-a6d1-0c2b5e7f9a34",
                   "reasons": [
                     "clipboard"
-                  ]
+                  ],
+                  "match": {
+                    "method": "clipboard",
+                    "confidence": "exact"
+                  }
                 }
               }
             }
@@ -3157,7 +3199,11 @@
                   "matchMethod": "install_referrer",
                   "confidence": null,
                   "clickId": "9a1c7e52-4b3d-4f8e-a6d1-0c2b5e7f9a34",
-                  "reasons": []
+                  "reasons": [],
+                  "match": {
+                    "method": "install_referrer",
+                    "confidence": "exact"
+                  }
                 }
               }
             }
@@ -3510,6 +3556,9 @@
                         "none"
                       ]
                     },
+                    "match": {
+                      "$ref": "#/components/schemas/MatchInfo"
+                    },
                     "reason": {
                       "type": "string"
                     },
@@ -3534,7 +3583,11 @@
                   "reasons": [
                     "test_mode"
                   ],
-                  "test": true
+                  "test": true,
+                  "match": {
+                    "method": "test",
+                    "confidence": "probable"
+                  }
                 }
               }
             }
@@ -4301,7 +4354,7 @@
                     "type": "string",
                     "pattern": "^[A-Za-z0-9_.:-]{1,64}$",
                     "example": "ord_1001",
-                    "description": "Optional idempotency id, e.g. your order id: a retry with the same eventId is accepted but stored once"
+                    "description": "Optional idempotency id, e.g. your order id: a retry with the same eventId is accepted but stored once. An event sent with your secret key replaces one sent first with the publishable key (keeping its tap and link when it has none) and is sent to your webhooks again, so a receiver de-duplicates on eventId + sentWith; nothing replaces a secret-key event."
                   },
                   "data": {
                     "type": [
@@ -5773,7 +5826,7 @@
             "description": "Missing or invalid secret key or session"
           },
           "402": {
-            "description": "plan_required: custom domains are part of the Scale plan"
+            "description": "plan_required: custom domains are part of the Starter plan and up"
           },
           "403": {
             "description": "Viewers cannot add domains"
