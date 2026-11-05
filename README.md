@@ -116,13 +116,32 @@ on page load and that landing is recorded as a link open, joined to the tap, in 
 import { reportWebOpen } from '@straitlink/web';
 
 const open = await reportWebOpen({ publishableKey: 'st_pub_live_…', endpoint: 'https://<your-handle>.strait.link' });
-// open.clickId: the tap this visit came from (pass it as clickId with conversion events)
+// open.clickId: the tap this visit came from; trackEvent attaches it for you
 ```
 
 A visit without `strait_click` (typed URL, reload of a plain page, internal navigation) reports
 nothing. A reload or a shared copy of a landing URL is counted once (the open id comes from the
 tap id). It never throws. If your site rejects unknown query parameters, turn the tap id off for
 the workspace or for one link (`webTapId: false` on the link API).
+
+### Conversion events
+
+Send a conversion (signup, purchase) and it shows up next to your app events, joined to the tap that brought
+the visitor, the same `trackEvent` as the iOS, Android, Flutter and React Native SDKs:
+
+```ts
+import { trackEvent } from '@straitlink/web';
+
+const strait = { publishableKey: 'st_pub_live_…', endpoint: 'https://<your-handle>.strait.link' };
+const ok = await trackEvent(strait, 'purchase', { value: 499, currency: 'INR', eventId: order.id });
+```
+
+The tap id comes from `reportWebOpen` (a landing with `strait_click`) or a matched `resolveDeferredLink`,
+kept in `localStorage` for 7 days; pass `clickId` to choose it yourself. `eventId` (your order id, 1-64 of
+`A-Z a-z 0-9 _ . : -`) makes a repeat count once. It resolves `true` when accepted and never throws.
+Input the engine would refuse (an empty name or one over 64 characters, a `value` outside 0-1,000,000,000, a
+currency that isn't 3 letters, a bad `eventId`, a `linkId` over 128 characters) is not sent: `false` and a console warning. Events sent from a
+web page can be faked by anyone with your publishable key; send revenue you rely on from your server.
 
 ### What it sends
 
@@ -134,7 +153,7 @@ an IP, and the signature is never used as a cross-app identity.
 
 ## User consent / opt-out
 
-If your site asks for consent first (for example under India's DPDP Act or a GDPR consent flow in the EU), call `setEnabled(false)` until the visitor agrees: `resolveDeferredLink` and `reportWebOpen` then send nothing, and the choice is kept in `localStorage` across visits. `setEnabled(true)` turns it back on (default: on); the deferred check skipped while off runs on your next `resolveDeferredLink` call, and `isEnabled()` reads the switch.
+If your site asks for consent first (for example under India's DPDP Act or a GDPR consent flow in the EU), call `setEnabled(false)` until the visitor agrees: `resolveDeferredLink`, `reportWebOpen` and `trackEvent` then send nothing (the remembered tap id is deleted), and the choice is kept in `localStorage` across visits. `setEnabled(true)` turns it back on (default: on); the deferred check skipped while off runs on your next `resolveDeferredLink` call, and `isEnabled()` reads the switch.
 Whether you need consent, and for what, is a question for your own legal advice.
 
 ## Smart app banner (mobile web)
@@ -185,6 +204,7 @@ Preview every option locally: `npm run build`, serve the repo root, open `exampl
 |--------|---------|
 | `resolveDeferredLink(config, opts?)` | the one call you need on launch |
 | `reportWebOpen(config, opts?)` | on page load: records a landing from a Strait tap (`strait_click` in the URL) as an open; `{ reported, clickId? }` |
+| `trackEvent(config, name, extra?)` | conversion / revenue event (`value`, `currency`, `linkId`, `clickId`, `eventId`); attaches the tap this visit came from; `true` when accepted |
 | `banner(options)` / `Strait.banner(options)` | smart app banner for mobile web; returns `{ element, dismiss, remove }` or `null` when not shown |
 | `setEnabled(enabled)` / `isEnabled()` | opt-out switch for consent flows: off = nothing sent; kept in `localStorage` |
 | `computeSignature(inputs)` | the canonical signature (advanced/testing) |
@@ -199,6 +219,7 @@ Measured 25 Oct 2026 on 0.6.3.
 | npm package | 12.5 KB download, 33 KB unpacked, no dependencies | `npm pack --dry-run` |
 | In your bundle, `resolveDeferredLink` only | 1.4 KB minified, 0.8 KB gzip | esbuild 0.25 `--bundle --minify`, tree-shaken |
 | In your bundle, `reportWebOpen` only (Unreleased) | 1.4 KB minified, 0.8 KB gzip | same, measured on this branch |
+| In your bundle, `trackEvent` only (Unreleased) | 2.0 KB minified, 1.0 KB gzip | same, measured 5 Nov 2026 |
 | In your bundle, `banner` only | 5.1 KB minified, 2.6 KB gzip | same |
 | Everything | 7.5 KB minified, 3.7 KB gzip (8.7 KB / 4.1 KB with `reportWebOpen`) | same, whole entry |
 | Start-up | 1.5 ms to load the module, no set-up call | fresh Node 26 process on an M-series Mac, median of 25 |

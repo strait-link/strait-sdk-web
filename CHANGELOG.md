@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- New: `trackEvent(config, name, extra?)`, conversion / revenue events from the web, the same contract as
+  the app SDKs (`POST /v1/event`, platform `web`; `extra`: `value`, `currency`, `linkId`, `clickId`,
+  `eventId`). It attaches the tap this browser came from (remembered by `reportWebOpen` or a matched
+  `resolveDeferredLink` as `strait.lastTap` in `localStorage`, 7 days). Input the engine would refuse is
+  not sent (false + a console warning). Sends nothing while `setEnabled(false)`, and switching off deletes
+  the remembered tap. Also `Strait.trackEvent`. ADR 0002.
+
 - New: `setEnabled(false)`, an opt-out switch for consent flows (DPDP, GDPR). While off,
   `resolveDeferredLink` and `reportWebOpen` send nothing; the one-time deferred check is not used up, so
   it runs on the first call after `setEnabled(true)`. Kept in `localStorage` (`strait.enabled`) across
