@@ -132,6 +132,11 @@ uses only the first two letters of the language. The **server** adds the
 IP it observes and computes the match signature — the client never sees or sends
 an IP, and the signature is never used as a cross-app identity.
 
+## User consent / opt-out
+
+If your site asks for consent first (for example under India's DPDP Act or a GDPR consent flow in the EU), call `setEnabled(false)` until the visitor agrees: `resolveDeferredLink` and `reportWebOpen` then send nothing, and the choice is kept in `localStorage` across visits. `setEnabled(true)` turns it back on (default: on); the deferred check skipped while off runs on your next `resolveDeferredLink` call, and `isEnabled()` reads the switch.
+Whether you need consent, and for what, is a question for your own legal advice.
+
 ## Smart app banner (mobile web)
 
 Show an "Open in app" bar to visitors on phones. The button is a plain link to your
@@ -181,6 +186,7 @@ Preview every option locally: `npm run build`, serve the repo root, open `exampl
 | `resolveDeferredLink(config, opts?)` | the one call you need on launch |
 | `reportWebOpen(config, opts?)` | on page load: records a landing from a Strait tap (`strait_click` in the URL) as an open; `{ reported, clickId? }` |
 | `banner(options)` / `Strait.banner(options)` | smart app banner for mobile web; returns `{ element, dismiss, remove }` or `null` when not shown |
+| `setEnabled(enabled)` / `isEnabled()` | opt-out switch for consent flows: off = nothing sent; kept in `localStorage` |
 | `computeSignature(inputs)` | the canonical signature (advanced/testing) |
 | `h32(s)` | the canonical hash (advanced/testing) |
 

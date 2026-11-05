@@ -59,6 +59,34 @@ export function replyReferralCode(reply: unknown): string | null {
 }
 
 const DONE_KEY = 'strait_match_done';
+const ENABLED_KEY = 'strait.enabled';
+/** This page's value when localStorage is blocked (private mode); storage keeps it across visits. */
+let enabledHere = true;
+
+/**
+ * Opt-out switch for consent flows (default on). Off: `resolveDeferredLink` and `reportWebOpen` send
+ * nothing (the deferred check stays due, so it runs once you switch back on). Kept in `localStorage`
+ * as `strait.enabled` across visits. The banner makes no requests and is not affected.
+ */
+export function setEnabled(enabled: boolean): void {
+  enabledHere = enabled;
+  try {
+    globalThis.localStorage?.setItem(ENABLED_KEY, enabled ? '1' : '0');
+  } catch {
+    /* blocked storage: this page only */
+  }
+}
+
+/** The opt-out switch's current value (see setEnabled). */
+export function isEnabled(): boolean {
+  try {
+    const v = globalThis.localStorage?.getItem(ENABLED_KEY);
+    if (v != null) return v !== '0';
+  } catch {
+    /* blocked storage: fall back to this page's value */
+  }
+  return enabledHere;
+}
 
 /**
  * Call once on first launch. Asks the Strait engine whether this device
@@ -75,7 +103,7 @@ export async function resolveDeferredLink(
 ): Promise<MatchResult> {
   const none: MatchResult = { matched: false, matchMethod: 'none' };
 
-  if (!opts.force && alreadyRan()) return none;
+  if (!isEnabled() || (!opts.force && alreadyRan())) return none;
   if (!isSafeEndpoint(config.endpoint)) {
     // Never throws (like every other failure here), but say why: over plain http anyone on the
     // network could rewrite the deferred link the app is about to open.
@@ -186,6 +214,7 @@ export async function reportWebOpen(config: StraitConfig, opts: { url?: string }
   const href = opts.url ?? (globalThis as { location?: { href?: string } }).location?.href ?? '';
   const { url, clickId } = takeTapId(href);
   if (!clickId) return { reported: false };
+  if (!isEnabled()) return { reported: false, clickId }; // opted out: nothing is sent
   if (!isSafeEndpoint(config.endpoint)) {
     console.warn(`Strait: endpoint must use https:// (got "${config.endpoint}"); plain http is only allowed for localhost, 127.0.0.1 and ::1. Skipping the open report.`);
     return { reported: false, clickId };
@@ -215,5 +244,5 @@ export async function reportWebOpen(config: StraitConfig, opts: { url?: string }
   }
 }
 
-/** Namespace form: `Strait.banner({...})`, `Strait.resolveDeferredLink({...})`, `Strait.reportWebOpen({...})`. */
-export const Strait = { banner, resolveDeferredLink, reportWebOpen };
+/** Namespace form: `Strait.banner({...})`, `Strait.resolveDeferredLink({...})`, `Strait.reportWebOpen({...})`, `Strait.setEnabled(false)`. */
+export const Strait = { banner, resolveDeferredLink, reportWebOpen, setEnabled, isEnabled };
