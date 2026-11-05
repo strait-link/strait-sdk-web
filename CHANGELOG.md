@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- New: the deferred check (`/v1/match`) and web open reports (`/v1/open`) now send this SDK's version
+  (`sdkVersion`, e.g. `0.7.0`), so the engine can store it with the recorded open and support can see which
+  version a visitor had. No app version is sent from the web. Conversion events and the opt-out path send
+  neither, and an engine that doesn't know the field ignores it.
 - New: `trackEvent(config, name, extra?)`, conversion / revenue events from the web, the same contract as
   the app SDKs (`POST /v1/event`, platform `web`; `extra`: `value`, `currency`, `linkId`, `clickId`,
   `eventId`). It attaches the tap this browser came from (remembered by `reportWebOpen` or a matched

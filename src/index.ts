@@ -1,4 +1,5 @@
 import { collectDevice, type DeviceFields } from './device.js';
+import { SDK_VERSION } from './version.js';
 
 export type { DeviceFields } from './device.js';
 export { computeSignature, h32 } from './signature.js';
@@ -123,7 +124,7 @@ export async function resolveDeferredLink(
     const res = await doFetch(`${trimSlash(config.endpoint)}/v1/match`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ publishableKey: config.publishableKey, platform: 'web', ...device }),
+      body: JSON.stringify({ publishableKey: config.publishableKey, platform: 'web', ...device, sdkVersion: SDK_VERSION }),
     });
     // A non-2xx (503 cold start, 429, ...) is not an answer: leave the check open so the next visit retries.
     if (!res.ok) return none;
@@ -241,6 +242,7 @@ export async function reportWebOpen(config: StraitConfig, opts: { url?: string }
         clickId,
         matched: true,
         firstLaunch: false,
+        sdkVersion: SDK_VERSION,
       }),
     });
     return { reported: res.ok, clickId };
