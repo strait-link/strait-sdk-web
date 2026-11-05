@@ -45,8 +45,9 @@ export interface MatchResult {
 
 /** How the engine matched a deferred link and how sure it is (engine ADR 0081). */
 export interface MatchInfo {
-  method: 'install_referrer' | 'clipboard' | 'fingerprint' | 'test';
-  confidence: 'exact' | 'high' | 'probable';
+  /** New values may be added by the engine later. */
+  method: 'install_referrer' | 'clipboard' | 'fingerprint' | 'test' | (string & {});
+  confidence: 'exact' | 'high' | 'probable' | (string & {});
 }
 
 /** A referral code as the engine accepts it: 1–64 letters, digits, - or _ (contract B21, proposal). */
