@@ -2,10 +2,12 @@
 
 ## Unreleased
 
+- New: a matched `MatchResult` has `match: { method, confidence }`, how the engine matched and how sure it
+  is (e.g. `fingerprint` / `probable`); absent when not matched or the engine doesn't send it (engine ADR
+  0081). New exported type `MatchInfo`. Pinned `openapi.json` refreshed from https://strait.link/openapi.json.
 - `MatchResult.test?: true` (types only): the engine's test-mode flag (4 Nov 2026, engine ADR 0071). It
   is set only on a debug re-check (`record: false`), which this SDK never sends, so nothing changes at
-  runtime. Pinned `openapi.json` refreshed from https://strait.link/openapi.json, so the daily drift
-  check is green again.
+  runtime.
 
 ## 0.7.0 (26 Oct 2026)
 
