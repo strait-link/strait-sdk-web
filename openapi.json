@@ -37,7 +37,7 @@
     },
     {
       "name": "Domains",
-      "description": "Custom link domains (Scale and Enterprise, up to 5 per workspace): add one, read the DNS records and its status, remove it (secret key or dashboard session)."
+      "description": "Custom link domains (Starter and up, up to 5 per workspace): add one, read the DNS records and its status, remove it (secret key or dashboard session)."
     },
     {
       "name": "Export",
@@ -215,6 +215,10 @@
             "type": "string",
             "format": "uri"
           },
+          "webTapId": {
+            "type": "boolean",
+            "description": "This link's override of the workspace setting for strait_click on web pages (see NewLink). Absent = the workspace setting (on unless turned off)."
+          },
           "description": {
             "type": "string"
           },
@@ -225,6 +229,33 @@
           "campaign": {
             "type": "string",
             "description": "Analytics campaign; defaults to longUrl's utm_campaign."
+          },
+          "health": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Link health (ADR 0057): the last background check of the destinations and store listings. `status` ok | attention | unknown; each problem has `field`, `url`, `verdict` (broken | at_risk) and the checker's `summary`. Absent until the first check.",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "ok",
+                  "attention",
+                  "unknown"
+                ]
+              },
+              "problems": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                }
+              },
+              "checkedAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
           },
           "variants": {
             "type": "array",
@@ -401,6 +432,33 @@
             "type": "string",
             "format": "uri",
             "description": "Desktop browsers go here instead of longUrl (https)."
+          },
+          "webTapId": {
+            "type": "boolean",
+            "description": "Taps sent to a web page (desktopUrl, the fallbacks, longUrl as a web page, a country rule, the workspace fallback) get this tap's id added as strait_click=<tap id>, the same id the app hand-off and the Play referrer carry, so @straitlink/web (and the React Native / Flutter web builds) count a web open joined to the tap. Existing query params (UTMs included) are kept as they are. On by default for the workspace. false turns it off for this link (a page that rejects unknown query params); true keeps it on even when the workspace turned it off."
+          },
+          "variants": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 10,
+            "items": {
+              "type": "object",
+              "required": [
+                "url",
+                "weight"
+              ],
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "format": "uri"
+                },
+                "weight": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                }
+              }
+            },
+            "description": "A/B test: web taps are split across these https destinations by weight (e.g. two with weight 1 = 50/50). Each url passes the same unsafe-destination check as longUrl."
           },
           "title": {
             "type": "string",
@@ -594,6 +652,231 @@
           }
         ]
       },
+      "Tap": {
+        "type": "object",
+        "description": "One tap, joined to its first app open and its install. Fields the tap does not have are null.",
+        "properties": {
+          "clickId": {
+            "type": "string"
+          },
+          "clickedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "linkId": {
+            "type": "string"
+          },
+          "slug": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "web (a tap in a browser) or an SDK source"
+          },
+          "platform": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "example": "android"
+          },
+          "deviceClass": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "phone",
+              "tablet",
+              "desktop",
+              null
+            ]
+          },
+          "osMajor": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "inAppBrowser": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "example": "instagram"
+          },
+          "channel": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "example": "whatsapp"
+          },
+          "sentTo": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Where the tap was sent",
+            "example": "app_or_store"
+          },
+          "campaign": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "variant": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "billable": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "false for a repeat within 10 seconds"
+          },
+          "opens": {
+            "type": "integer",
+            "description": "App opens joined to this tap"
+          },
+          "openedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "openKind": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "direct",
+              "deferred",
+              null
+            ]
+          },
+          "openRoute": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "appState": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "isNewUser": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "installedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "installMatched": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "matchMethod": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "ConversionEvent": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "name": {
+            "type": "string",
+            "example": "purchase"
+          },
+          "value": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "currency": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "example": "INR"
+          },
+          "platform": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "linkId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "slug": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "clickId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "channel": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "campaign": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "variant": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        }
+      },
       "AppLinksFinding": {
         "type": "object",
         "properties": {
@@ -619,6 +902,33 @@
             "type": "string"
           }
         }
+      },
+      "MatchInfo": {
+        "type": "object",
+        "required": [
+          "method",
+          "confidence"
+        ],
+        "properties": {
+          "method": {
+            "type": "string",
+            "enum": [
+              "install_referrer",
+              "clipboard",
+              "fingerprint",
+              "test"
+            ]
+          },
+          "confidence": {
+            "type": "string",
+            "enum": [
+              "exact",
+              "high",
+              "probable"
+            ]
+          }
+        },
+        "description": "Present only when matched (absent otherwise, never null): how this install was matched and how sure we are, in plain terms. install_referrer / clipboard = exact (Google Play or a single-use paste token named the tap). fingerprint = an iPhone device-signal match (matchMethod exact_ext or exact_core): probable, because two people with the same iPhone model on one network look alike; high is reserved for the scored matcher's top band once it is enabled. test = a test-mode answer (always probable: the newest tap in the window, not proof of this device). Gate sensitive deep links (referral rewards, invites) on exact. Can be absent on a replay of an install recorded before Oct 2026. matchMethod and confidence are unchanged."
       },
       "MatchResult": {
         "type": "object",
@@ -646,9 +956,10 @@
               "exact_core",
               "scored",
               "clipboard",
+              "test",
               "none"
             ],
-            "description": "How it matched. 'clipboard' = a claimed paste-handoff token (POST /v1/handoff/claim). 'scored' is reserved for the scored iPhone matcher, which is not enabled yet."
+            "description": "How it matched. 'clipboard' = a claimed paste-handoff token (POST /v1/handoff/claim). 'test' = test mode: a debug re-check (record:false) answered from the workspace's open test window (Dashboard -> Get started -> Test mode). 'scored' is reserved for the scored iPhone matcher, which is not enabled yet."
           },
           "confidence": {
             "type": [
@@ -662,6 +973,9 @@
             ],
             "description": "Scored matches only (matchMethod 'scored'): 'high' or 'medium'. Null for every other answer of /v1/match."
           },
+          "match": {
+            "$ref": "#/components/schemas/MatchInfo"
+          },
           "clickId": {
             "type": "string",
             "format": "uuid",
@@ -671,6 +985,13 @@
             "type": "string",
             "pattern": "^[A-Za-z0-9_-]{1,64}$",
             "description": "Preview (referrals not switched on yet). Present only when matched and the tap carried a referral code: the tap's ?strait_ref=, else its link's referralCode. Absent otherwise (never null). The SDKs pass it to your app as `referralCode` on the deferred link (contract B21)."
+          },
+          "test": {
+            "type": "boolean",
+            "enum": [
+              true
+            ],
+            "description": "Present (true) only on a test-mode answer: a debug re-check (record:false) while the workspace's test window was open. matched:false then carries reason no_tap (no tap since the window opened; tap a link and check again), other_device (the window belongs to the first phone that checked in) or not_found. A test answer never carries clickId. Absent otherwise."
           },
           "ios": {
             "type": "object",
@@ -748,6 +1069,17 @@
                 "paused"
               ]
             }
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "required": false,
+            "description": "Only links with this exact tag (works with or without paging). 1–100 characters, no `\"` or `\\`.",
+            "schema": {
+              "type": "string",
+              "maxLength": 100,
+              "example": "sale"
+            }
           }
         ],
         "responses": {
@@ -816,6 +1148,18 @@
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "Optional (ADR 0055). Retry with the same key and the same body to get the first answer back (header `Idempotent-Replayed: true`) instead of running again. 1 to 255 of `[A-Za-z0-9_.:-]`, kept 24 hours per workspace and endpoint. 5xx, 429 and 402 answers are not kept.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.:-]{1,255}$"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -859,7 +1203,7 @@
             }
           },
           "400": {
-            "description": "Invalid field, or destination_blocked (a URL failed the unsafe-destination check)"
+            "description": "Invalid field, destination_blocked (a URL failed the unsafe-destination check; `field` names which one, e.g. `iosFallbackUrl` or `variants[1].url`), or invalid_idempotency_key"
           },
           "401": {
             "description": "Missing or invalid secret key"
@@ -868,7 +1212,10 @@
             "description": "Plan limit reached (this month's new links, or taps over twice the plan). Existing links keep working. Body: `{ error, reason: \"links\" | \"clicks\", upgradeUrl }` (\"clicks\" = the monthly tap limit)."
           },
           "409": {
-            "description": "An active link with this slug already exists in this workspace"
+            "description": "An active link with this slug already exists in this workspace, or `idempotency_key_in_use`: a request with the same Idempotency-Key is still running (Retry-After: 1)"
+          },
+          "422": {
+            "description": "`idempotency_key_reused`: the Idempotency-Key was used in the last 24 hours with a different body"
           },
           "429": {
             "description": "New-account limit: a workspace younger than 24 hours can create 25 links. It lifts by itself; Retry-After says when. Body: `{ error: \"new_account_limit\", reason: \"links\", message, limit, resetsAt }`."
@@ -887,6 +1234,18 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "Optional (ADR 0055). Retry with the same key and the same body to get the first answer back (header `Idempotent-Replayed: true`) instead of running again. 1 to 255 of `[A-Za-z0-9_.:-]`, kept 24 hours per workspace and endpoint. 5xx, 429 and 402 answers are not kept.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.:-]{1,255}$"
+            }
           }
         ],
         "requestBody": {
@@ -957,6 +1316,10 @@
                           "reason": {
                             "type": "string",
                             "description": "For destination_blocked and plan limits."
+                          },
+                          "field": {
+                            "type": "string",
+                            "description": "For destination_blocked: the field holding the listed URL (longUrl, iosFallbackUrl, androidFallbackUrl, desktopUrl, expiredUrl, notLiveUrl, countryRules[i].url, variants[i].url)."
                           }
                         }
                       }
@@ -1195,6 +1558,13 @@
                     "type": "boolean",
                     "description": "Send alone. false = pause, true = turn the paused link back on."
                   },
+                  "webTapId": {
+                    "type": [
+                      "boolean",
+                      "null"
+                    ],
+                    "description": "strait_click on web pages for this link (see NewLink); null = follow the workspace setting."
+                  },
                   "countryRules": {
                     "type": [
                       "array",
@@ -1265,7 +1635,7 @@
             }
           },
           "400": {
-            "description": "Invalid field, isActive sent with other fields, or destination_blocked (a URL failed the unsafe-destination check; with isActive: true the link stays paused)"
+            "description": "Invalid field, isActive sent with other fields, or destination_blocked (a URL failed the unsafe-destination check; `field` names which one; with isActive: true the link stays paused)"
           },
           "404": {
             "description": "Not found (with isActive: true: no paused or active link with this slug)"
@@ -1395,6 +1765,16 @@
             }
           },
           {
+            "name": "preset",
+            "in": "query",
+            "description": "Start from a saved QR style (Settings → QR codes) instead of the workspace default; color, background and logo still override it. Unknown id: 400.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z0-9-]{1,32}$",
+              "example": "p-packaging"
+            }
+          },
+          {
             "name": "track",
             "in": "query",
             "description": "Add utm_source=qr so scans count as the qr channel",
@@ -1473,6 +1853,171 @@
           },
           "429": {
             "description": "More than 60 codes a minute for this workspace (Retry-After: 1), or PNG rendering is busy server-wide (Retry-After: 2; SVG is not limited by it)"
+          }
+        }
+      }
+    },
+    "/v1/qr.zip": {
+      "get": {
+        "summary": "Download every QR code of a campaign as one ZIP",
+        "operationId": "getCampaignQrZip",
+        "tags": [
+          "Links"
+        ],
+        "description": "A ZIP with one QR code per **live** link whose campaign is `campaign` (case-insensitive, the same match as the dashboard's links filter), named `<slug>-qr.<format>` and sorted by slug. Same style rules as GET /v1/links/{slug}/qr: the workspace default or `preset`, overridden by color / background / logo, refused (400) when it would not scan. SVG by default (vector, for print). At most 500 codes as SVG, or 50 as PNG at up to 1024 px. Rate limit: 3 ZIPs a minute per workspace; one PNG ZIP at a time server-wide.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "campaign",
+            "in": "query",
+            "required": true,
+            "description": "The links' campaign name, e.g. `diwali_sale`",
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "description": "Image format of every code",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "svg",
+                "png"
+              ],
+              "default": "svg"
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "description": "Width and height in pixels (PNG: at most 1024)",
+            "schema": {
+              "type": "integer",
+              "minimum": 128,
+              "maximum": 2048,
+              "default": 1024
+            }
+          },
+          {
+            "name": "margin",
+            "in": "query",
+            "description": "Quiet zone around each code, in modules",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 16,
+              "default": 2
+            }
+          },
+          {
+            "name": "preset",
+            "in": "query",
+            "description": "A saved QR style id (Settings → QR codes)",
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z0-9-]{1,32}$"
+            }
+          },
+          {
+            "name": "color",
+            "in": "query",
+            "description": "Code colour as hex, overrides the style",
+            "schema": {
+              "type": "string",
+              "example": "1f2937"
+            }
+          },
+          {
+            "name": "background",
+            "in": "query",
+            "description": "Background colour as hex, overrides the style",
+            "schema": {
+              "type": "string",
+              "example": "ffffff"
+            }
+          },
+          {
+            "name": "logo",
+            "in": "query",
+            "description": "Put the app icon in the middle, overrides the style",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "track",
+            "in": "query",
+            "description": "Add utm_source=qr so scans count as the qr channel",
+            "schema": {
+              "type": "boolean",
+              "default": true
+            }
+          },
+          {
+            "name": "tenantId",
+            "in": "query",
+            "description": "Dashboard sessions only: the workspace id",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The ZIP (stored, not compressed)",
+            "headers": {
+              "X-Strait-Qr-Count": {
+                "description": "Codes in the ZIP",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-Strait-Qr-Logo": {
+                "description": "Same values as for one code",
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "embedded",
+                    "off",
+                    "no_icon",
+                    "unavailable",
+                    "png_needs_png_icon"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "application/zip": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                },
+                "example": "PK\u0003\u0004… (diwali-a-qr.svg, diwali-b-qr.svg)"
+              }
+            }
+          },
+          "400": {
+            "description": "No campaign, unknown preset, colours that would not scan, PNG over 1024 px, or more links than the ZIP holds"
+          },
+          "401": {
+            "description": "Missing or invalid secret key / session"
+          },
+          "404": {
+            "description": "No live links in this campaign"
+          },
+          "429": {
+            "description": "More than 3 ZIPs a minute for this workspace, or another PNG ZIP is being made"
+          },
+          "503": {
+            "description": "PNG rendering stayed busy for 30 s; retry or use SVG"
           }
         }
       }
@@ -1659,6 +2204,268 @@
         }
       }
     },
+    "/v1/taps": {
+      "get": {
+        "summary": "List taps",
+        "operationId": "listTaps",
+        "tags": [
+          "Analytics"
+        ],
+        "description": "Every tap (one row per person tapping a link), oldest first, as cursor pages: `{ taps, nextCursor }`; pass `nextCursor` back as `cursor` until it is null. Each tap carries where it was sent, its channel and campaign, and its first app open and install. The same rows as GET /v1/export?part=taps, for syncing into your own tools. Link-preview bots are not taps. Secret key with `read` or `full` access; 30 reads a minute per workspace, shared with GET /v1/events.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "1–100, default 50",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "`nextCursor` from the previous page",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "description": "Inclusive start: ISO date (UTC), ISO date-time or epoch ms",
+            "schema": {
+              "type": "string",
+              "example": "2026-10-01"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "description": "Exclusive end, same formats",
+            "schema": {
+              "type": "string",
+              "example": "2026-11-01"
+            }
+          },
+          {
+            "name": "link",
+            "in": "query",
+            "required": false,
+            "description": "Only this active link's taps (its slug)",
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,64}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of taps",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "taps": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Tap"
+                      }
+                    },
+                    "nextCursor": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  }
+                },
+                "example": {
+                  "taps": [
+                    {
+                      "clickId": "9a1c7e52-4b3d-4f8e-a1c2-7d6e5f4a3b21",
+                      "clickedAt": "2026-10-01T10:00:00.000Z",
+                      "linkId": "lnk_5f0c2a8e-3b1d-4f6a-9c7e-2d8b1a0e4f63",
+                      "slug": "summer",
+                      "source": "web",
+                      "platform": "android",
+                      "deviceClass": "phone",
+                      "osMajor": 15,
+                      "inAppBrowser": null,
+                      "channel": "whatsapp",
+                      "sentTo": "app_or_store",
+                      "campaign": "diwali",
+                      "variant": null,
+                      "billable": true,
+                      "opens": 1,
+                      "openedAt": "2026-10-01T10:00:04.000Z",
+                      "openKind": "direct",
+                      "openRoute": "app_link",
+                      "appState": "closed",
+                      "isNewUser": false,
+                      "installedAt": null,
+                      "installMatched": null,
+                      "matchMethod": null
+                    }
+                  ],
+                  "nextCursor": "WyIyMDI2LTEwLTAxVDEwOjAwOjAwLjAwMDAwMCswMDowMCIsIjlhMWM3ZTUyIl0"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad limit, cursor, from / to or link"
+          },
+          "401": {
+            "description": "Missing or invalid secret key, or a publishable key"
+          },
+          "403": {
+            "description": "The key is limited to links"
+          },
+          "404": {
+            "description": "No active link with that slug"
+          },
+          "429": {
+            "description": "Over 30 reads a minute for this workspace (Retry-After)"
+          }
+        }
+      }
+    },
+    "/v1/events": {
+      "get": {
+        "summary": "List conversion events",
+        "operationId": "listEvents",
+        "tags": [
+          "Events"
+        ],
+        "description": "Every conversion event, oldest first, as cursor pages: `{ events, nextCursor }`. An event that came from a tap carries that tap's link, channel, campaign and variant. The same rows as GET /v1/export?part=events. Secret key with `read` or `full` access; 30 reads a minute per workspace, shared with GET /v1/taps.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "1–100, default 50",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "`nextCursor` from the previous page",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "description": "Inclusive start: ISO date (UTC), ISO date-time or epoch ms",
+            "schema": {
+              "type": "string",
+              "example": "2026-10-01"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "description": "Exclusive end, same formats",
+            "schema": {
+              "type": "string",
+              "example": "2026-11-01"
+            }
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": false,
+            "description": "Only events with this name, e.g. `purchase`",
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of events",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "events": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ConversionEvent"
+                      }
+                    },
+                    "nextCursor": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  }
+                },
+                "example": {
+                  "events": [
+                    {
+                      "id": "5d2f8a1b-3c4e-4f6a-9b8c-1e2d3f4a5b6c",
+                      "createdAt": "2026-10-01T10:05:00.000Z",
+                      "name": "purchase",
+                      "value": 1499,
+                      "currency": "INR",
+                      "platform": "android",
+                      "linkId": "lnk_5f0c2a8e-3b1d-4f6a-9c7e-2d8b1a0e4f63",
+                      "slug": "summer",
+                      "clickId": "9a1c7e52-4b3d-4f8e-a1c2-7d6e5f4a3b21",
+                      "channel": "whatsapp",
+                      "campaign": "diwali",
+                      "variant": null
+                    }
+                  ],
+                  "nextCursor": null
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad limit, cursor, from / to or name"
+          },
+          "401": {
+            "description": "Missing or invalid secret key, or a publishable key"
+          },
+          "403": {
+            "description": "The key is limited to links"
+          },
+          "429": {
+            "description": "Over 30 reads a minute for this workspace (Retry-After)"
+          }
+        }
+      }
+    },
     "/v1/usage": {
       "get": {
         "summary": "Read this month's usage",
@@ -1740,8 +2547,8 @@
                   "month": "2026-10",
                   "plan": "free",
                   "taps": {
-                    "used": 8560,
-                    "included": 10000
+                    "used": 21400,
+                    "included": 25000
                   },
                   "links": {
                     "created": 14,
@@ -1749,6 +2556,148 @@
                   },
                   "level": "warn",
                   "new_links_paused": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid secret key, or a publishable key"
+          },
+          "429": {
+            "description": "Over 30 calls a minute for this workspace"
+          }
+        }
+      }
+    },
+    "/v1/workspace": {
+      "get": {
+        "summary": "Who this key is",
+        "operationId": "getWorkspace",
+        "tags": [
+          "Links"
+        ],
+        "description": "The workspace this secret key belongs to: its name, the link domain every `shortUrl` uses (`linkBase`, its custom domain when one is verified, else `<handle>.strait.link`), verified custom domains, the plan, and the key's own access (`full`, `links` or `read`) and prefix, and the saved QR styles (Dashboard → Settings → QR codes) whose `id` the QR endpoints take as `preset`. Any secret key; 30 calls a minute per workspace.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The workspace and the key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "example": "Hilltop Shoes"
+                    },
+                    "handle": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "example": "hilltop"
+                    },
+                    "linkBase": {
+                      "type": "string",
+                      "example": "https://hilltop.strait.link"
+                    },
+                    "linkDomain": {
+                      "type": "string",
+                      "example": "hilltop.strait.link"
+                    },
+                    "customDomains": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "plan": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "enum": [
+                        "free",
+                        "starter",
+                        "scale",
+                        "enterprise",
+                        null
+                      ]
+                    },
+                    "key": {
+                      "type": "object",
+                      "properties": {
+                        "scope": {
+                          "type": "string",
+                          "enum": [
+                            "full",
+                            "links",
+                            "read"
+                          ]
+                        },
+                        "prefix": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "example": "st_live_ab12"
+                        }
+                      }
+                    },
+                    "qrStyles": {
+                      "type": "array",
+                      "description": "Saved QR styles, up to 12. Pass an `id` as `preset` to GET /v1/links/{slug}/qr or GET /v1/qr.zip. Null colour / logo = the workspace default.",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "example": "p-packaging"
+                          },
+                          "name": {
+                            "type": "string",
+                            "example": "Packaging"
+                          },
+                          "color": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "example": "1f2937"
+                          },
+                          "background": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "example": "fef3c7"
+                          },
+                          "logo": {
+                            "type": [
+                              "boolean",
+                              "null"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "name": "Hilltop Shoes",
+                  "handle": "hilltop",
+                  "linkBase": "https://hilltop.strait.link",
+                  "linkDomain": "hilltop.strait.link",
+                  "customDomains": [],
+                  "plan": "starter",
+                  "key": {
+                    "scope": "read",
+                    "prefix": "st_live_ab12"
+                  }
                 }
               }
             }
@@ -1966,7 +2915,7 @@
                   },
                   "record": {
                     "type": "boolean",
-                    "description": "false = a read only (SDK checkDeferred): answer the match, record no install, open or webhook. Omit for the real first-launch check."
+                    "description": "false = a read only (SDK checkDeferred): answer the match, record no install, open or webhook. Omit for the real first-launch check. While the workspace's test window is open (Dashboard -> Get started -> Test mode, 15 minutes), a read only gets the newest tap since the window opened, once (matchMethod test, test:true)."
                   }
                 }
               },
@@ -1998,7 +2947,11 @@
                   "clickId": "9a1c7e52-4b3d-4f8e-a6d1-0c2b5e7f9a34",
                   "reasons": [
                     "exact_ext"
-                  ]
+                  ],
+                  "match": {
+                    "method": "fingerprint",
+                    "confidence": "probable"
+                  }
                 }
               }
             }
@@ -2083,7 +3036,11 @@
                   "clickId": "9a1c7e52-4b3d-4f8e-a6d1-0c2b5e7f9a34",
                   "reasons": [
                     "clipboard"
-                  ]
+                  ],
+                  "match": {
+                    "method": "clipboard",
+                    "confidence": "exact"
+                  }
                 }
               }
             }
@@ -2242,7 +3199,11 @@
                   "matchMethod": "install_referrer",
                   "confidence": null,
                   "clickId": "9a1c7e52-4b3d-4f8e-a6d1-0c2b5e7f9a34",
-                  "reasons": []
+                  "reasons": [],
+                  "match": {
+                    "method": "install_referrer",
+                    "confidence": "exact"
+                  }
                 }
               }
             }
@@ -2521,6 +3482,127 @@
           },
           "429": {
             "description": "Rate limited: per IP (60 burst, 1 a second) or per workspace (600 burst, 10 a second; Retry-After). The SDKs keep the report and retry it, de-duplicated by openId"
+          }
+        }
+      }
+    },
+    "/v1/test-mode/match": {
+      "post": {
+        "summary": "Deferred test mode: claim a test tap (debug builds)",
+        "operationId": "matchTestMode",
+        "tags": [
+          "SDK"
+        ],
+        "description": "Lets a debug build prove a deferred link without reinstalling. The SDK sends its debug device id; if a workspace writer opened a 15-minute test window in the dashboard and tapped a link, the answer carries that link (`matchMethod: test`, `test: true`). Never touches production matching. Only mounted when the engine runs with TEST_MODE=on (otherwise 404). Publishable key, current key only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "publishableKey",
+                  "deviceId"
+                ],
+                "properties": {
+                  "publishableKey": {
+                    "type": "string",
+                    "example": "st_pub_live_…"
+                  },
+                  "deviceId": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9_-]{8,64}$",
+                    "description": "The SDK debug device id"
+                  },
+                  "platform": {
+                    "type": "string",
+                    "maxLength": 32,
+                    "example": "android"
+                  }
+                }
+              },
+              "example": {
+                "publishableKey": "st_pub_live_…",
+                "deviceId": "dbg_3f9a2c7e",
+                "platform": "android"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Matched (`longUrl`, `linkId`, `clickId`) or not (`matched: false` with a `reason`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "matched": {
+                      "type": "boolean"
+                    },
+                    "longUrl": {
+                      "type": "string"
+                    },
+                    "linkId": {
+                      "type": "string"
+                    },
+                    "clickId": {
+                      "type": "string"
+                    },
+                    "matchMethod": {
+                      "type": "string",
+                      "enum": [
+                        "test",
+                        "none"
+                      ]
+                    },
+                    "match": {
+                      "$ref": "#/components/schemas/MatchInfo"
+                    },
+                    "reason": {
+                      "type": "string"
+                    },
+                    "reasons": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "test": {
+                      "type": "boolean",
+                      "const": true
+                    }
+                  }
+                },
+                "example": {
+                  "matched": true,
+                  "longUrl": "https://shop.example.com/sale/summer",
+                  "linkId": "lnk_…",
+                  "clickId": "c_…",
+                  "matchMethod": "test",
+                  "reasons": [
+                    "test_mode"
+                  ],
+                  "test": true,
+                  "match": {
+                    "method": "test",
+                    "confidence": "probable"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "deviceId missing or malformed"
+          },
+          "401": {
+            "description": "Missing, invalid or rotated publishable key"
+          },
+          "404": {
+            "description": "Test mode is off on this engine"
+          },
+          "429": {
+            "description": "Rate limited (per IP)"
           }
         }
       }
@@ -3272,7 +4354,7 @@
                     "type": "string",
                     "pattern": "^[A-Za-z0-9_.:-]{1,64}$",
                     "example": "ord_1001",
-                    "description": "Optional idempotency id, e.g. your order id: a retry with the same eventId is accepted but stored once"
+                    "description": "Optional idempotency id, e.g. your order id: a retry with the same eventId is accepted but stored once. An event sent with your secret key replaces one sent first with the publishable key (keeping its tap and link when it has none) and is sent to your webhooks again, so a receiver de-duplicates on eventId + sentWith; nothing replaces a secret-key event."
                   },
                   "data": {
                     "type": [
@@ -3451,7 +4533,7 @@
         ],
         "responses": {
           "200": {
-            "description": "The report: { domain, checkedAt, android: { status, file, findings[] }, ios: { status, file, legacyFile, findings[] }, note }. Each finding is { id, severity: ok|warn|error, title, detail, fix }; each file is { url, finalUrl, status, contentType, size, redirects[], fetchError, parse, body (≤ 32 KB), bodyTruncated }.",
+            "description": "The report: { domain, checkedAt, android: { status, file, findings[] }, ios: { status, file, legacyFile, findings[], applinks }, note }. Each finding is { id, severity: ok|warn|error, title, detail, fix }; each file is { url, finalUrl, status, contentType, size, redirects[], fetchError, parse, body (≤ 32 KB), bodyTruncated }. ios.applinks is the parsed \"applinks\" object Apple would use (null when missing, not JSON or over 128 KB).",
             "content": {
               "application/json": {
                 "schema": {
@@ -3492,6 +4574,12 @@
                         },
                         "legacyFile": {
                           "type": "object"
+                        },
+                        "applinks": {
+                          "type": [
+                            "object",
+                            "null"
+                          ]
                         },
                         "findings": {
                           "type": "array",
@@ -3582,6 +4670,205 @@
           },
           "429": {
             "description": "Rate limited"
+          }
+        }
+      }
+    },
+    "/v1/tools/link-check": {
+      "post": {
+        "summary": "Is my app link broken? (public tool)",
+        "operationId": "checkLink",
+        "tags": [
+          "Tools"
+        ],
+        "description": "Opens one pasted link the way an Android phone, an iPhone and a desktop browser would (following redirects, reading app and store hand-offs) and says what each device gets: the app, the store, the web, or a dead end. Works on any provider (page.link, Branch, AppsFlyer, Strait, your own domain). No key needed. POST so the link never lands in an access log; nothing is stored. Rate-limited (10 per minute per IP, shared with /v1/tools/app-links, and 60 checks a minute across all visitors); CORS only for https://straitlink.in, https://app.straitlink.in and http://localhost:<port>. Only public https links on a domain name: IP addresses, private networks and odd ports are refused (400). At most 8 hops per device, 5 s each.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "url"
+                ],
+                "properties": {
+                  "url": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "The full link, e.g. https://yourapp.page.link/abc"
+                  }
+                }
+              },
+              "example": {
+                "url": "https://hilltop.page.link/summer"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The report. `verdict`: ok | at_risk | broken | unchecked. Each platform result has an `outcome` (app | store | web | dead | loop | error), a one-line `summary`, the `hops` it took, and the `app` / `store` it reached.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "url": {
+                      "type": "string"
+                    },
+                    "provider": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "example": "Firebase Dynamic Links"
+                    },
+                    "firebase": {
+                      "type": "boolean"
+                    },
+                    "verdict": {
+                      "type": "string",
+                      "enum": [
+                        "ok",
+                        "at_risk",
+                        "broken",
+                        "unchecked"
+                      ]
+                    },
+                    "headline": {
+                      "type": "string"
+                    },
+                    "checkedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "platforms": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "platform": {
+                            "type": "string",
+                            "enum": [
+                              "android",
+                              "ios",
+                              "desktop"
+                            ]
+                          },
+                          "outcome": {
+                            "type": "string",
+                            "enum": [
+                              "app",
+                              "store",
+                              "web",
+                              "dead",
+                              "loop",
+                              "error"
+                            ]
+                          },
+                          "summary": {
+                            "type": "string"
+                          },
+                          "hops": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "url": {
+                                  "type": "string"
+                                },
+                                "status": {
+                                  "type": [
+                                    "integer",
+                                    "null"
+                                  ]
+                                }
+                              }
+                            }
+                          },
+                          "app": {
+                            "type": "string"
+                          },
+                          "store": {
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "type": "string",
+                                "enum": [
+                                  "Google Play",
+                                  "App Store"
+                                ]
+                              },
+                              "url": {
+                                "type": "string"
+                              },
+                              "live": {
+                                "type": [
+                                  "boolean",
+                                  "null"
+                                ]
+                              },
+                              "regional": {
+                                "type": "boolean"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "url": "https://hilltop.page.link/summer",
+                  "provider": "Firebase Dynamic Links",
+                  "firebase": true,
+                  "verdict": "broken",
+                  "headline": "This link is broken on every device.",
+                  "checkedAt": "2026-10-01T10:00:00.000Z",
+                  "platforms": [
+                    {
+                      "platform": "android",
+                      "outcome": "dead",
+                      "summary": "Android: the link answers 404 (not found).",
+                      "hops": [
+                        {
+                          "url": "https://hilltop.page.link/summer",
+                          "status": 404
+                        }
+                      ]
+                    },
+                    {
+                      "platform": "ios",
+                      "outcome": "dead",
+                      "summary": "iPhone: the link answers 404 (not found).",
+                      "hops": [
+                        {
+                          "url": "https://hilltop.page.link/summer",
+                          "status": 404
+                        }
+                      ]
+                    },
+                    {
+                      "platform": "desktop",
+                      "outcome": "dead",
+                      "summary": "Desktop: the link answers 404 (not found).",
+                      "hops": [
+                        {
+                          "url": "https://hilltop.page.link/summer",
+                          "status": 404
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not a full link, or refused (IP address, private network, odd port, not https)"
+          },
+          "429": {
+            "description": "Rate limited (per IP), or the checker is busy (all visitors); Retry-After"
           }
         }
       }
@@ -4282,6 +5569,66 @@
         }
       }
     },
+    "/v1/workspace/close": {
+      "post": {
+        "summary": "Close a workspace (dashboard)",
+        "operationId": "closeWorkspace",
+        "tags": [
+          "Export"
+        ],
+        "x-internal": true,
+        "description": "A signed-in owner only (a key cannot), who types the link handle to confirm; with two-factor sign-in on, the code must be from the last 10 minutes. Links go off, keys are revoked, webhooks paused and memberships removed now; everything is deleted for good 30 days later. A live paid plan must be canceled first (409).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "tenantId",
+                  "confirm"
+                ],
+                "properties": {
+                  "tenantId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "confirm": {
+                    "type": "string",
+                    "description": "The workspace's link handle"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Closed"
+          },
+          "400": {
+            "description": "The handle typed does not match"
+          },
+          "401": {
+            "description": "Not signed in, or a key was used"
+          },
+          "403": {
+            "description": "Not the owner, or a fresh two-factor code is needed"
+          },
+          "404": {
+            "description": "Not a member of this workspace"
+          },
+          "409": {
+            "description": "A paid plan is still live"
+          }
+        }
+      }
+    },
     "/v1/domains": {
       "get": {
         "summary": "List the workspace's custom domains",
@@ -4479,7 +5826,7 @@
             "description": "Missing or invalid secret key or session"
           },
           "402": {
-            "description": "plan_required: custom domains are part of the Scale plan"
+            "description": "plan_required: custom domains are part of the Starter plan and up"
           },
           "403": {
             "description": "Viewers cannot add domains"
@@ -4601,6 +5948,30 @@
             "description": "nextCursor from the previous page",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "description": "Only deliveries in this state; `failed` is the dead-letter list",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "delivered",
+                "failed"
+              ]
+            }
+          },
+          {
+            "name": "event",
+            "in": "query",
+            "required": false,
+            "description": "Only this event, e.g. `app.opened`",
+            "schema": {
+              "type": "string",
+              "maxLength": 64
             }
           }
         ],

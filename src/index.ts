@@ -36,6 +36,18 @@ export interface MatchResult {
    * yet (contract B21). Absent otherwise.
    */
   referralCode?: string;
+  /**
+   * When matched: how the engine matched and how sure it is, e.g.
+   * `{ method: 'fingerprint', confidence: 'probable' }` (engine ADR 0081). Absent otherwise.
+   */
+  match?: MatchInfo;
+}
+
+/** How the engine matched a deferred link and how sure it is (engine ADR 0081). */
+export interface MatchInfo {
+  /** New values may be added by the engine later. */
+  method: 'install_referrer' | 'clipboard' | 'fingerprint' | 'test' | (string & {});
+  confidence: 'exact' | 'high' | 'probable' | (string & {});
 }
 
 /** A referral code as the engine accepts it: 1–64 letters, digits, - or _ (contract B21, proposal). */
@@ -89,6 +101,10 @@ export async function resolveDeferredLink(
     const code = json.matched === true ? replyReferralCode(json.referralCode) : null;
     if (code) json.referralCode = code;
     else delete json.referralCode;
+    const m = json.match as { method?: unknown; confidence?: unknown } | null | undefined;
+    if (json.matched === true && m && typeof m.method === 'string' && typeof m.confidence === 'string') {
+      json.match = { method: m.method, confidence: m.confidence } as MatchInfo;
+    } else delete json.match;
     return json;
   } catch {
     return none;

@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- New: a matched `MatchResult` has `match: { method, confidence }`, how the engine matched and how sure it
+  is (e.g. `fingerprint` / `probable`); absent when not matched or the engine doesn't send it (engine ADR
+  0081). New exported type `MatchInfo`. Pinned `openapi.json` refreshed from https://strait.link/openapi.json.
+
 ## 0.7.0 (26 Oct 2026)
 
 - `reportWebOpen(config, opts?)`: on page load, a URL carrying `strait_click` (the tap id the engine

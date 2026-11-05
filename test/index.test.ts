@@ -147,3 +147,22 @@ describe('referralCode (contract B21, preview)', () => {
     for (const c of [undefined, null, '', 'x'.repeat(65), 'a b', 'me@example.com', '+919999', 'ü', 42]) expect(replyReferralCode(c)).toBeNull();
   });
 });
+
+describe('match (engine ADR 0081)', () => {
+  const reply = (body: unknown) => vi.fn(async () => ({ ok: true, json: async () => body })) as unknown as typeof fetch;
+  const matched = { matched: true, longUrl: 'https://shop.example/invite', linkId: 'lnk_42', matchMethod: 'exact_ext' };
+
+  it('passes method + confidence through on a match', async () => {
+    const match = { method: 'fingerprint', confidence: 'probable' };
+    const r = await resolveDeferredLink({ ...config, fetch: reply({ ...matched, match }) }, { force: true });
+    expect(r.match).toEqual(match);
+  });
+
+  it('absent from the reply, malformed, or no match: no field', async () => {
+    const m = { method: 'fingerprint', confidence: 'probable' };
+    for (const body of [matched, { ...matched, match: null }, { ...matched, match: 'exact' }, { ...matched, match: { method: 1 } }, { matched: false, matchMethod: 'none', match: m }]) {
+      const r = await resolveDeferredLink({ ...config, fetch: reply(body) }, { force: true });
+      expect(r).not.toHaveProperty('match');
+    }
+  });
+});
