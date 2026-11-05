@@ -150,6 +150,8 @@ language tag such as `en-US`, timezone) and posts them to `/v1/match`; the serve
 uses only the first two letters of the language. The **server** adds the
 IP it observes and computes the match signature — the client never sees or sends
 an IP, and the signature is never used as a cross-app identity.
+`/v1/match` and `/v1/open` also carry this SDK's version (`sdkVersion`) so support can see which version a
+visit used; no app version is sent from the web.
 
 ## User consent / opt-out
 

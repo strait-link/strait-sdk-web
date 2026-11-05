@@ -33,6 +33,7 @@ describe('reportWebOpen', () => {
       clickId: TAP,
       matched: true,
       firstLaunch: false,
+      sdkVersion: JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version,
     });
   });
 

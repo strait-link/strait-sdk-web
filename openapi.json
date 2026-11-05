@@ -2916,6 +2916,16 @@
                   "record": {
                     "type": "boolean",
                     "description": "false = a read only (SDK checkDeferred): answer the match, record no install, open or webhook. Omit for the real first-launch check. While the workspace's test window is open (Dashboard -> Get started -> Test mode, 15 minutes), a read only gets the newest tap since the window opened, once (matchMethod test, test:true)."
+                  },
+                  "appVersion": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "description": "The app's version (1-64 printable ASCII characters); anything else is ignored. Optional."
+                  },
+                  "sdkVersion": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "description": "The SDK's version (1-64 printable ASCII characters); anything else is ignored. Optional."
                   }
                 }
               },
@@ -3432,6 +3442,16 @@
                       "tablet"
                     ],
                     "description": "What the app runs on (iPad = tablet), stored on the tap this open records. iPadOS Safari sends a Mac user agent, so browser taps from an iPad count as desktop."
+                  },
+                  "appVersion": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "description": "The app's version (1-64 printable ASCII characters); anything else is ignored. Optional."
+                  },
+                  "sdkVersion": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "description": "The SDK's version (1-64 printable ASCII characters); anything else is ignored. Optional."
                   }
                 }
               },
