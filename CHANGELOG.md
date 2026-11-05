@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- `MatchResult.test?: true` (types only): the engine's test-mode flag (4 Nov 2026, engine ADR 0071). It
+  is set only on a debug re-check (`record: false`), which this SDK never sends, so nothing changes at
+  runtime. Pinned `openapi.json` refreshed from https://strait.link/openapi.json, so the daily drift
+  check is green again.
+
 ## 0.7.0 (26 Oct 2026)
 
 - `reportWebOpen(config, opts?)`: on page load, a URL carrying `strait_click` (the tap id the engine

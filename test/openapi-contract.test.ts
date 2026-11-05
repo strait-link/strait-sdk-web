@@ -18,7 +18,7 @@ const body = entry.op.requestBody!.content['application/json']!.schema;
 const result = spec.components.schemas.MatchResult!;
 
 // Every MatchResult field and matchMethod this SDK declares (typed, so the lists follow the interface).
-const RESULT_KEYS = ['matched', 'longUrl', 'linkId', 'matchMethod', 'clickId', 'referralCode'] as const satisfies ReadonlyArray<keyof MatchResult>;
+const RESULT_KEYS = ['matched', 'longUrl', 'linkId', 'matchMethod', 'clickId', 'referralCode', 'test'] as const satisfies ReadonlyArray<keyof MatchResult>;
 const METHODS: ReadonlyArray<MatchResult['matchMethod']> = ['exact_ext', 'exact_core', 'none'];
 
 describe('openapi contract: matchInstall', () => {

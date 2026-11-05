@@ -36,6 +36,12 @@ export interface MatchResult {
    * yet (contract B21). Absent otherwise.
    */
   referralCode?: string;
+  /**
+   * Engine test mode (ADR 0071): `true` only on a debug re-check (`record: false`) answered from the
+   * workspace's open test window, with `matchMethod: 'test'`. This SDK never sends `record: false`, so
+   * it is absent here (and `matchMethod` is never `'test'`); typed so MatchResult matches the API.
+   */
+  test?: true;
 }
 
 /** A referral code as the engine accepts it: 1–64 letters, digits, - or _ (contract B21, proposal). */
