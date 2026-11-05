@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- New: `trackEvent(config, name, extra?)`, conversion / revenue events from the web, the same contract as
+  the app SDKs (`POST /v1/event`, platform `web`; `extra`: `value`, `currency`, `linkId`, `clickId`,
+  `eventId`). It attaches the tap this browser came from (remembered by `reportWebOpen` or a matched
+  `resolveDeferredLink` as `strait.lastTap` in `localStorage`, 7 days). Input the engine would refuse is
+  not sent (false + a console warning). Sends nothing while `setEnabled(false)`, and switching off deletes
+  the remembered tap. Also `Strait.trackEvent`. ADR 0002.
+
+- New: `setEnabled(false)`, an opt-out switch for consent flows (DPDP, GDPR). While off,
+  `resolveDeferredLink` and `reportWebOpen` send nothing; the one-time deferred check is not used up, so
+  it runs on the first call after `setEnabled(true)`. Kept in `localStorage` (`strait.enabled`) across
+  visits; `isEnabled()` reads it. Default on. The banner makes no requests and is unchanged. ADR 0001.
 - New: a matched `MatchResult` has `match: { method, confidence }`, how the engine matched and how sure it
   is (e.g. `fingerprint` / `probable`); absent when not matched or the engine doesn't send it (engine ADR
   0081). New exported type `MatchInfo`. Pinned `openapi.json` refreshed from https://strait.link/openapi.json.

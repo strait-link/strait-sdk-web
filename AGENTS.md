@@ -33,8 +33,8 @@ if (result.matched && result.longUrl) {
 ```
 
 It runs at most once per browser and never throws (on error: `{ matched: false, matchMethod: 'none' }`), so it is
-safe to await at startup. Keep `result.clickId` if you send conversion events later (`POST /v1/event` with the
-publishable key and `clickId`).
+safe to await at startup. For conversion events use `trackEvent(config, 'purchase', { value, currency, eventId })`:
+it attaches the tap id for you (don't hand-write `POST /v1/event`).
 
 ## Smart app banner (optional)
 
