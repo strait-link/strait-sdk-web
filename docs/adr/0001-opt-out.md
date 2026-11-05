@@ -20,7 +20,7 @@ SDK sends anything. Without a switch they must not call Strait at all, or they p
   call after switching back on), `reportWebOpen` returns `{ reported: false, clickId }`.
 - Stored as `strait.enabled` (`'0'` / `'1'`) in `localStorage`; absent = on. Blocked storage (private mode)
   falls back to this page's value, so a `setEnabled(false)` always holds for the current page.
-- No queue or remembered tap exists here, so nothing needs deleting. The banner makes no requests (only the
+- No queue exists here. (Since ADR 0002 the SDK remembers the tap for `trackEvent`; switching off deletes it.) The banner makes no requests (only the
   visitor's own tap on the link) and is not affected.
 
 ## Security lens
