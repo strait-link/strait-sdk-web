@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.8.0 (7 Nov 2026)
 
 - New: the deferred check (`/v1/match`) and web open reports (`/v1/open`) now send this SDK's version
   (`sdkVersion`, e.g. `0.7.0`), so the engine can store it with the recorded open and support can see which
