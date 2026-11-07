@@ -38,6 +38,12 @@ export interface MatchResult {
    */
   referralCode?: string;
   /**
+   * Engine test mode (ADR 0071): `true` only on a debug re-check (`record: false`) answered from the
+   * workspace's open test window, with `matchMethod: 'test'`. This SDK never sends `record: false`, so
+   * it is absent here (and `matchMethod` is never `'test'`); typed so MatchResult matches the API.
+   */
+  test?: true;
+  /**
    * When matched: how the engine matched and how sure it is, e.g.
    * `{ method: 'fingerprint', confidence: 'probable' }` (engine ADR 0081). Absent otherwise.
    */
