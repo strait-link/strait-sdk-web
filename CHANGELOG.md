@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- README: starts with the fastest path (no `strait init` for this platform yet: a website needs no generated files, or the Strait MCP `get_started` prompt), before the manual quick start.
+- README: starts with a guided setup section (no `strait init` for this platform yet: a website needs no generated files, or the Strait MCP `get_started` prompt), before the manual quick start.
 
 ## 0.8.0 (7 Nov 2026)
 
