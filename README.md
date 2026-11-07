@@ -34,6 +34,10 @@ Deep linking for the web: deferred match + attribution, in a few lines.
 The device signature is kept in lockstep with the server and the other app SDKs via shared golden
 vectors (this package runs the same vectors in CI), so a change that would make them drift fails the tests.
 
+## Fastest path
+
+A website needs no generated files, so there's no `strait init` step. The two steps below are the whole setup. Or let your AI coding tool do it: connect the [Strait MCP server](https://straitlink.in/docs/mcp/) and run its `get_started` prompt with platform `web`; it pastes the exact setup from the docs.
+
 ## Quick start (60 seconds)
 
 **1. Install.**

@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- README: starts with the fastest path (no `strait init` for this platform yet: a website needs no generated files, or the Strait MCP `get_started` prompt), before the manual quick start.
+
 ## 0.8.0 (7 Nov 2026)
 
 - New: the deferred check (`/v1/match`) and web open reports (`/v1/open`) now send this SDK's version
