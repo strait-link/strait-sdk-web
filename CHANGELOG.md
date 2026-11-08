@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.8.1 (8 Nov 2026)
 
 - README: starts with a guided setup section (no `strait init` for this platform yet: a website needs no generated files, or the Strait MCP `get_started` prompt), before the manual quick start.
 
