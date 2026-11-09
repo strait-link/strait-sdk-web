@@ -28,141 +28,49 @@ beforeEach(() => {
   });
 });
 
-describe('resolveDeferredLink', () => {
-  it('POSTs publishableKey + platform + device fields to /v1/match', async () => {
-    const fetchMock = vi.fn(async () => ({
-      ok: true,
-      json: async () => ({ matched: true, longUrl: 'https://app/x', matchMethod: 'exact_ext' }),
-    })) as unknown as typeof fetch;
+// Deprecated in 0.8.3 (ADR 0003): Strait saves deferred-match details only on the iPhone tap page, so a
+// website can never match. The function stays until 0.9.0 but sends nothing and says why.
+describe('resolveDeferredLink (deprecated: not available on web)', () => {
+  const NOT_ON_WEB = { matched: false, matchMethod: 'none', reason: 'not_available_on_web' };
 
-    const res = await resolveDeferredLink({ ...config, fetch: fetchMock });
-
-    expect(res.matched).toBe(true);
-    expect(res.longUrl).toBe('https://app/x');
-    const [url, init] = (fetchMock as unknown as ReturnType<typeof vi.fn>).mock.calls[0]!;
-    expect(url).toBe('https://go.example.com/v1/match'); // trailing slash trimmed
-    const body = JSON.parse((init as RequestInit).body as string);
-    expect(body).toMatchObject({ publishableKey: 'st_pub_test_ten1key01', platform: 'web', ...device });
-  });
-
-  it('runs at most once per browser (no double install rows)', async () => {
-    const fetchMock = vi.fn(async () => ({
-      ok: true,
-      json: async () => ({ matched: false, matchMethod: 'none' }),
-    })) as unknown as typeof fetch;
-
-    await resolveDeferredLink({ ...config, fetch: fetchMock });
-    await resolveDeferredLink({ ...config, fetch: fetchMock });
-
-    expect((fetchMock as unknown as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(1);
-  });
-
-  it('runs again when force:true (tests)', async () => {
-    const fetchMock = vi.fn(async () => ({
-      ok: true,
-      json: async () => ({ matched: false, matchMethod: 'none' }),
-    })) as unknown as typeof fetch;
-
-    await resolveDeferredLink({ ...config, fetch: fetchMock }, { force: true });
-    await resolveDeferredLink({ ...config, fetch: fetchMock }, { force: true });
-
-    expect((fetchMock as unknown as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(2);
-  });
-
-  it('degrades gracefully on network error', async () => {
-    const fetchMock = vi.fn(async () => {
-      throw new Error('offline');
-    }) as unknown as typeof fetch;
-
-    const res = await resolveDeferredLink({ ...config, fetch: fetchMock }, { force: true });
-    expect(res).toEqual({ matched: false, matchMethod: 'none' });
-  });
-
-  it('refuses a non-https endpoint (no request sent), except localhost / 127.0.0.1 / ::1', async () => {
+  it('sends no request, writes nothing, and returns not_available_on_web', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const matched = async () => ({ ok: true, json: async () => ({ matched: true, longUrl: 'https://x.com', matchMethod: 'exact_core' }) });
-    for (const bad of ['http://go.example.com', 'http://localhost.evil.com', 'http://127.0.0.2:3000', 'ftp://go.example.com', 'go.example.com', '']) {
-      const fetchMock = vi.fn(matched) as unknown as typeof fetch;
-      const res = await resolveDeferredLink({ ...config, endpoint: bad, fetch: fetchMock }, { force: true });
-      expect(res, bad).toEqual({ matched: false, matchMethod: 'none' });
-      expect(fetchMock, bad).not.toHaveBeenCalled();
+    const fetchMock = vi.fn() as unknown as typeof fetch;
+    const setItem = vi.spyOn(localStorage, 'setItem');
+    for (const c of [config, { ...config, endpoint: 'http://go.example.com' }, { ...config, endpoint: '' }]) {
+      expect(await resolveDeferredLink({ ...c, fetch: fetchMock })).toEqual(NOT_ON_WEB);
+      expect(await resolveDeferredLink({ ...c, fetch: fetchMock }, { force: true })).toEqual(NOT_ON_WEB);
     }
-    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/endpoint must use https/));
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(setItem).not.toHaveBeenCalled(); // no strait_match_done, no remembered tap
     warn.mockRestore();
-    for (const ok of ['https://go.example.com', 'http://localhost:3000', 'http://127.0.0.1:8787/', 'http://[::1]:3000', 'HTTP://LOCALHOST']) {
-      const fetchMock = vi.fn(matched) as unknown as typeof fetch;
-      const res = await resolveDeferredLink({ ...config, endpoint: ok, fetch: fetchMock }, { force: true });
-      expect(res.matched, ok).toBe(true);
-    }
   });
 
-  it('returns no-match on a non-200 response', async () => {
-    const fetchMock = vi.fn(async () => ({ ok: false, json: async () => ({}) })) as unknown as typeof fetch;
-    const res = await resolveDeferredLink({ ...config, fetch: fetchMock }, { force: true });
-    expect(res.matched).toBe(false);
+  it('warns once per page, naming what to use instead and when it goes', async () => {
+    vi.resetModules();
+    const fresh = await import('../src/index.js');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    await fresh.resolveDeferredLink(config);
+    await fresh.resolveDeferredLink(config);
+    expect(warn).toHaveBeenCalledTimes(1);
+    const msg = String(warn.mock.calls[0]![0]);
+    expect(msg).toMatch(/resolveDeferredLink is deprecated and not available on the web/);
+    expect(msg).toMatch(/iPhone tap page/);
+    expect(msg).toMatch(/reportWebOpen/);
+    expect(msg).toMatch(/removed in 0\.9\.0/);
+    warn.mockRestore();
   });
 
-  it('retries after a 503 (or network error), so a later 200 still resolves the link', async () => {
-    const replies = [
-      () => Promise.reject(new Error('offline')),
-      () => Promise.resolve({ ok: false, status: 503, json: async () => ({}) }),
-      () =>
-        Promise.resolve({
-          ok: true,
-          status: 200,
-          json: async () => ({ matched: true, longUrl: 'https://app/x', matchMethod: 'exact_ext' }),
-        }),
-    ];
-    const fetchMock = vi.fn(() => replies.shift()!()) as unknown as typeof fetch;
-
-    expect((await resolveDeferredLink({ ...config, fetch: fetchMock })).matched).toBe(false);
-    expect((await resolveDeferredLink({ ...config, fetch: fetchMock })).matched).toBe(false);
-    const res = await resolveDeferredLink({ ...config, fetch: fetchMock });
-    expect(res).toMatchObject({ matched: true, longUrl: 'https://app/x' });
-
-    // ...and once a 200 arrives, the check is done for good.
-    await resolveDeferredLink({ ...config, fetch: fetchMock });
-    expect((fetchMock as unknown as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(3);
+  it('never throws, even without a browser (no window.screen) or config', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    await expect(resolveDeferredLink({} as never)).resolves.toEqual(NOT_ON_WEB);
+    warn.mockRestore();
   });
 });
 
-describe('referralCode (contract B21, preview)', () => {
-  const reply = (body: unknown) => vi.fn(async () => ({ ok: true, json: async () => body })) as unknown as typeof fetch;
-  const matched = { matched: true, longUrl: 'https://shop.example/invite', linkId: 'lnk_42', matchMethod: 'exact_ext' };
-
-  it('passes a valid code through exactly', async () => {
-    const r = await resolveDeferredLink({ ...config, fetch: reply({ ...matched, referralCode: 'ASHA42' }) }, { force: true });
-    expect(r.referralCode).toBe('ASHA42');
-  });
-
-  it('drops a missing, invalid or unmatched code', async () => {
-    for (const body of [matched, { ...matched, referralCode: 'not valid' }, { ...matched, referralCode: null }, { matched: false, matchMethod: 'none', referralCode: 'ASHA42' }]) {
-      const r = await resolveDeferredLink({ ...config, fetch: reply(body) }, { force: true });
-      expect(r).not.toHaveProperty('referralCode');
-    }
-  });
-
-  it('replyReferralCode accepts 1-64 letters, digits, - or _', () => {
+describe('replyReferralCode (contract B21, preview)', () => {
+  it('accepts 1-64 letters, digits, - or _', () => {
     for (const c of ['ASHA42', 'a', 'user_12-b', 'x'.repeat(64)]) expect(replyReferralCode(c)).toBe(c);
     for (const c of [undefined, null, '', 'x'.repeat(65), 'a b', 'me@example.com', '+919999', 'ü', 42]) expect(replyReferralCode(c)).toBeNull();
-  });
-});
-
-describe('match (engine ADR 0081)', () => {
-  const reply = (body: unknown) => vi.fn(async () => ({ ok: true, json: async () => body })) as unknown as typeof fetch;
-  const matched = { matched: true, longUrl: 'https://shop.example/invite', linkId: 'lnk_42', matchMethod: 'exact_ext' };
-
-  it('passes method + confidence through on a match', async () => {
-    const match = { method: 'fingerprint', confidence: 'probable' };
-    const r = await resolveDeferredLink({ ...config, fetch: reply({ ...matched, match }) }, { force: true });
-    expect(r.match).toEqual(match);
-  });
-
-  it('absent from the reply, malformed, or no match: no field', async () => {
-    const m = { method: 'fingerprint', confidence: 'probable' };
-    for (const body of [matched, { ...matched, match: null }, { ...matched, match: 'exact' }, { ...matched, match: { method: 1 } }, { matched: false, matchMethod: 'none', match: m }]) {
-      const r = await resolveDeferredLink({ ...config, fetch: reply(body) }, { force: true });
-      expect(r).not.toHaveProperty('match');
-    }
   });
 });

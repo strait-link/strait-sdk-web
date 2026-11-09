@@ -1,7 +1,7 @@
 # Strait example: web (Vite)
 
 Built against this repo's own source (`"@straitlink/web": "file:../.."`), so CI fails here when the public API changes.
-Shows the deep link (the page routes on the URL it was opened with), the deferred link (`resolveDeferredLink`, once per browser) and an event (`trackEvent`, the same call the app SDKs make).
+Shows the deep link (the page routes on the URL it was opened with), the open report (`reportWebOpen`: a landing from a Strait tap counts as an open of that tap) and an event (`trackEvent`, the same call the app SDKs make, joined to that tap).
 
 1. `npm ci` in the repo root, then `npm ci` here.
 2. `cp .env.example .env` and set your publishable key (`st_pub_…`, Dashboard → Get started).

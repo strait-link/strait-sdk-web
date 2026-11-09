@@ -52,10 +52,10 @@ describe('trackEvent: send', () => {
     expect(events(e.calls)[0]!.body.clickId).toBe(TAP);
   });
 
-  it('attaches the tap of a matched deferred link (resolveDeferredLink); an explicit clickId wins', async () => {
+  it('an explicit clickId wins over the remembered tap', async () => {
     const sdk = await load();
     const e = engine();
-    await sdk.resolveDeferredLink(cfg(e.fetch));
+    await sdk.reportWebOpen(cfg(e.fetch), { url: `https://shop.example/p?strait_click=${TAP}` });
     await sdk.trackEvent(cfg(e.fetch), 'signup');
     const other = '0f8fad5b-d9cb-469f-a165-70867728950e';
     await sdk.trackEvent(cfg(e.fetch), 'signup', { clickId: other, linkId: 'lnk_1' });

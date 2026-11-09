@@ -29,7 +29,7 @@ A tap opens the exact screen, and every link open and install is recorded in you
 
 `@straitlink/web`
 
-Deep linking for the web: deferred match + attribution, in a few lines.
+Deep linking for the web: count link opens on your site, join conversions to the tap, and show a smart app banner, in a few lines.
 
 The device signature is kept in lockstep with the server and the other app SDKs via shared golden
 vectors (this package runs the same vectors in CI), so a change that would make them drift fails the tests.
@@ -46,23 +46,23 @@ A website needs no generated files, so there's no `strait init` step. The two st
 npm install @straitlink/web
 ```
 
-**2. Ask once, on page load.** The publishable key (`st_pub_live_…`) is in **Dashboard → Get started** and is safe in web pages.
+**2. Report the open, on page load.** The publishable key (`st_pub_live_…`) is in **Dashboard → Get started** and is safe in web pages.
 
 ```ts
-import { resolveDeferredLink } from '@straitlink/web';
+import { reportWebOpen } from '@straitlink/web';
 
-const result = await resolveDeferredLink({ publishableKey: 'st_pub_live_…', endpoint: 'https://<your-handle>.strait.link' });
-console.log(result);
+const open = await reportWebOpen({ publishableKey: 'st_pub_live_…', endpoint: 'https://<your-handle>.strait.link' });
+console.log(open);
 ```
 
-**You should see:** `{ matched: false, matchMethod: 'none', … }` in the console, and one `POST /v1/match` answering `200` in **DevTools → Network**. Expect `matched: false` on a website for now, even right after tapping one of your links: Strait saves the device details a match needs only on the iPhone tap page (the **Get the app** step, for app installs), never for a tap that goes to your website. To credit a website visit to the tap it came from, use [`reportWebOpen`](#count-opens-on-your-website).
+**You should see:** tap one of your Strait links that goes to this page. The page opens with `?strait_click=<tap id>` in its URL, the console shows `{ reported: true, clickId: '…' }`, and **DevTools → Network** shows one `POST /v1/open` answering `2xx`. Opened without `strait_click` (typed URL), it shows `{ reported: false }` and sends nothing.
 
 ## Platform features
 
 | Feature | Status | Notes |
 |---|---|---|
 | Web links open the right page | ● Live | Handled by Strait; nothing to install. |
-| Deferred match on first visit (`resolveDeferredLink`) | ◐ Beta | At most once per browser. Never throws. No match for website visitors yet (see the quick start); `reportWebOpen` credits a landing to its tap. |
+| Deferred match on first visit (`resolveDeferredLink`) | Deprecated | Not available on the web; removed in 0.9.0. See [Deferred match: not on the web](#deferred-match-not-on-the-web). |
 | Link opens on your website (`reportWebOpen`) | ◐ Beta | Counts a page view as an open only when the URL carries `strait_click` (a landing from a Strait tap), joined to that tap. Needs the engine release that adds the tap id to web landings (on by default; turn it off per workspace or per link). |
 | Smart app banner for mobile web (`banner`) | ◐ Beta | Styled with the Strait design system, light and dark. No requests of its own (apart from loading your `icon`), no cookies. [Docs](https://straitlink.in/docs/smart-banner/) |
 | iPhone install matching | Opt-in | Off until you choose it; proven on iPhone simulators, the real-iPhone run waits on our App Store listing. Runs in your app through the native SDKs, not in this package. Your choice in Dashboard → Settings → iPhone installs: device matching, paste handoff, both or neither, read from Strait at runtime. Device matching is off by default. iPhone matches are labelled Estimated until measured. |
@@ -80,37 +80,10 @@ npm install @straitlink/web
 
 ## Use
 
-On first launch, ask Strait whether it has a deferred link for this browser, and route to its
-destination. It answers `matched: true` only when Strait saved a match for this device. Today that
-happens only on the iPhone tap page (for app installs), never for a tap that goes to your website, so
-a website gets `matched: false`; use [`reportWebOpen`](#count-opens-on-your-website) to credit a visit to its tap:
-
-```ts
-import { resolveDeferredLink } from '@straitlink/web';
-
-const result = await resolveDeferredLink({
-  publishableKey: 'st_pub_live_…',    // Dashboard → Get started (safe in apps; never the secret key)
-  endpoint: 'https://<your-handle>.strait.link', // your workspace's link domain
-});
-
-if (result.matched && result.longUrl) {
-  router.navigate(result.longUrl); // land the user on the right screen
-}
-```
-
-`resolveDeferredLink` runs **at most once per browser** (it records one install
-server-side, and remembers that in `localStorage`; where storage is blocked it can
-run again on a later visit). In a browser it doesn't throw: on any network or
-server error it resolves to `{ matched: false, matchMethod: 'none' }`, so it's safe
-to await on startup. A network error or non-2xx reply (say a 503 while the server
-wakes up) doesn't count as the one run: the next visit asks again. Outside a browser (server rendering), pass `device` or don't
-call it, because it reads `window.screen`.
-
-When the matched tap carried a referral code, the result also has `referralCode`
-(preview, not switched on yet; contract B21). It is absent otherwise.
-
-A match also has `match`, how the engine matched and how sure it is, e.g. `{ method: 'fingerprint', confidence: 'probable' }`:
-why this visit was attributed. It is absent when there is no match.
+A Strait link that goes to your website already opens the right page: Strait sends the visitor to the
+link's destination URL, so your site routes on that URL as it would for any visit. The SDK adds what
+the link alone can't: it counts the visit as an open of the tap, joins your conversions to that tap, and
+shows an "Open in app" banner on phones.
 
 ### Count opens on your website
 
@@ -142,26 +115,41 @@ const strait = { publishableKey: 'st_pub_live_…', endpoint: 'https://<your-han
 const ok = await trackEvent(strait, 'purchase', { value: 499, currency: 'INR', eventId: order.id });
 ```
 
-The tap id comes from `reportWebOpen` (a landing with `strait_click`) or a matched `resolveDeferredLink`,
+The tap id comes from `reportWebOpen` (a landing with `strait_click`),
 kept in `localStorage` for 7 days; pass `clickId` to choose it yourself. `eventId` (your order id, 1-64 of
 `A-Z a-z 0-9 _ . : -`) makes a repeat count once. It resolves `true` when accepted and never throws.
 Input the engine would refuse (an empty name or one over 64 characters, a `value` outside 0-1,000,000,000, a
 currency that isn't 3 letters, a bad `eventId`, a `linkId` over 128 characters) is not sent: `false` and a console warning. Events sent from a
 web page can be faked by anyone with your publishable key; send revenue you rely on from your server.
 
-### What it sends
+### Deferred match: not on the web
 
-The SDK collects coarse device fields (screen width, pixel ratio, the browser's
-language tag such as `en-US`, timezone) and posts them to `/v1/match`; the server
-uses only the first two letters of the language. The **server** adds the
-IP it observes and computes the match signature — the client never sees or sends
-an IP, and the signature is never used as a cross-app identity.
-`/v1/match` and `/v1/open` also carry this SDK's version (`sdkVersion`) so support can see which version a
-visit used; no app version is sent from the web.
+`resolveDeferredLink` is **deprecated** (0.8.3) and will be **removed in 0.9.0**. A deferred match needs
+device details that Strait saves only on the iPhone tap page (the **Get the app** step, for app installs),
+never for a tap that goes to a website, so a website could never get `matched: true`. It now sends no request
+and always returns `{ matched: false, matchMethod: 'none', reason: 'not_available_on_web' }`, with one console
+warning per page. Calling it doesn't break your page.
+
+What to use instead:
+
+| You wanted | Use |
+|---|---|
+| The visitor lands on the page the link points to | Nothing: the link already opens that URL. Route on it as usual. |
+| Know which tap brought the visitor | [`reportWebOpen`](#count-opens-on-your-website) on page load |
+| Join a signup or purchase to that tap | [`trackEvent`](#conversion-events): it attaches the tap `reportWebOpen` saw |
+| Send phone visitors to your app | The [smart app banner](#smart-app-banner-mobile-web) |
+| A deferred match after an app install | The app SDKs (iOS, Android, React Native, Flutter, Capacitor) do this in your app |
+
+
+
+`reportWebOpen` sends your publishable key, the tap id from the URL and the page URL to `/v1/open`;
+`trackEvent` sends the event fields you pass to `/v1/event`. No device fields, no cookies, and the client
+never sees or sends an IP. `/v1/open` also carries this SDK's version (`sdkVersion`) so support can see which
+version a visit used; no app version is sent from the web.
 
 ## User consent / opt-out
 
-If your site asks for consent first (for example under India's DPDP Act or a GDPR consent flow in the EU), call `setEnabled(false)` until the visitor agrees: `resolveDeferredLink`, `reportWebOpen` and `trackEvent` then send nothing (the remembered tap id is deleted), and the choice is kept in `localStorage` across visits. `setEnabled(true)` turns it back on (default: on); the deferred check skipped while off runs on your next `resolveDeferredLink` call, and `isEnabled()` reads the switch.
+If your site asks for consent first (for example under India's DPDP Act or a GDPR consent flow in the EU), call `setEnabled(false)` until the visitor agrees: `reportWebOpen` and `trackEvent` then send nothing (the remembered tap id is deleted), and the choice is kept in `localStorage` across visits. `setEnabled(true)` turns it back on (default: on), and `isEnabled()` reads the switch.
 Whether you need consent, and for what, is a question for your own legal advice.
 
 ## Smart app banner (mobile web)
@@ -210,8 +198,8 @@ Preview every option locally: `npm run build`, serve the repo root, open `exampl
 
 | export | purpose |
 |--------|---------|
-| `resolveDeferredLink(config, opts?)` | the one call you need on launch |
 | `reportWebOpen(config, opts?)` | on page load: records a landing from a Strait tap (`strait_click` in the URL) as an open; `{ reported, clickId? }` |
+| `resolveDeferredLink(config, opts?)` | **deprecated**, not available on the web (sends nothing, `matched: false`); removed in 0.9.0. [What to use instead](#deferred-match-not-on-the-web) |
 | `trackEvent(config, name, extra?)` | conversion / revenue event (`value`, `currency`, `linkId`, `clickId`, `eventId`); attaches the tap this visit came from; `true` when accepted |
 | `banner(options)` / `Strait.banner(options)` | smart app banner for mobile web; returns `{ element, dismiss, remove }` or `null` when not shown |
 | `setEnabled(enabled)` / `isEnabled()` | opt-out switch for consent flows: off = nothing sent; kept in `localStorage` |
@@ -225,7 +213,6 @@ Measured 25 Oct 2026 on 0.6.3.
 | What | Size or time | How it was measured |
 |---|---|---|
 | npm package | 12.5 KB download, 33 KB unpacked, no dependencies | `npm pack --dry-run` |
-| In your bundle, `resolveDeferredLink` only | 1.4 KB minified, 0.8 KB gzip | esbuild 0.25 `--bundle --minify`, tree-shaken |
 | In your bundle, `reportWebOpen` only (Unreleased) | 1.4 KB minified, 0.8 KB gzip | same, measured on this branch |
 | In your bundle, `trackEvent` only (Unreleased) | 2.0 KB minified, 1.0 KB gzip | same, measured 5 Nov 2026 |
 | In your bundle, `banner` only | 5.1 KB minified, 2.6 KB gzip | same |
@@ -234,7 +221,7 @@ Measured 25 Oct 2026 on 0.6.3.
 
 ## Example app
 
-[`examples/web`](examples/web) (Vite) routes on the deep link, resolves the deferred link and logs a `purchase` event, built against this repo's source (CI builds it on every PR). [`examples/banner.html`](examples/banner.html) previews the smart banner.
+[`examples/web`](examples/web) (Vite) routes on the deep link, reports the open and logs a `purchase` event, built against this repo's source (CI builds it on every PR). [`examples/banner.html`](examples/banner.html) previews the smart banner.
 
 1. `npm ci` here, then `cd examples/web && npm ci`.
 2. `cp .env.example .env` and set your publishable key (`st_pub_…`).

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.8.3 (9 Nov 2026)
+
+- Deprecated: `resolveDeferredLink` is not available on the web and will be removed in 0.9.0 (ADR 0003). Strait
+  saves the details a deferred match needs only on the iPhone tap page, for app installs, so a website could never
+  match. It now sends no request (no `/v1/match`, so no empty install row per visitor) and always returns
+  `{ matched: false, matchMethod: 'none', reason: 'not_available_on_web' }`, with one console warning per page.
+  The export and its signature stay, so nothing breaks. Use instead: the link already opens the right page;
+  `reportWebOpen` on page load credits the visit to its tap and `trackEvent` attaches it. `replyReferralCode`,
+  `DeviceFields` and `StraitConfig.device` only served it: deprecated too.
+- README: the quick start reports the open (`reportWebOpen`); new section "Deferred match: not on the web". The
+  example app reports the open instead of asking for a deferred link.
+
 ## 0.8.2 (9 Nov 2026)
 
 - Docs (README, `resolveDeferredLink` doc comment): no longer promises `matched: true` to a browser that "tapped one of your

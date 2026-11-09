@@ -30,26 +30,22 @@ describe('sdkVersion on recording calls', () => {
     expect(SDK_VERSION).toBe(pkg.version);
   });
 
-  it('/v1/match and /v1/open carry sdkVersion and no appVersion; /v1/event carries neither', async () => {
+  it('/v1/open carries sdkVersion and no appVersion; /v1/event carries neither', async () => {
     const sdk = await load();
     const e = engine();
-    await sdk.resolveDeferredLink(cfg(e.fetch), { force: true });
     await sdk.reportWebOpen(cfg(e.fetch), { url: landing });
     await sdk.trackEvent(cfg(e.fetch), 'purchase', { value: 5 });
-    expect(e.calls.map((c) => c.path)).toEqual(['/v1/match', '/v1/open', '/v1/event']);
-    for (const c of e.calls.slice(0, 2)) {
-      expect(c.body.sdkVersion, c.path).toBe(pkg.version);
-      expect(c.body, c.path).not.toHaveProperty('appVersion');
-    }
-    expect(e.calls[2]!.body).not.toHaveProperty('sdkVersion');
-    expect(e.calls[2]!.body).not.toHaveProperty('appVersion');
+    expect(e.calls.map((c) => c.path)).toEqual(['/v1/open', '/v1/event']);
+    expect(e.calls[0]!.body.sdkVersion).toBe(pkg.version);
+    expect(e.calls[0]!.body).not.toHaveProperty('appVersion');
+    expect(e.calls[1]!.body).not.toHaveProperty('sdkVersion');
+    expect(e.calls[1]!.body).not.toHaveProperty('appVersion');
   });
 
   it('opted out: nothing is sent, so neither version leaves the page', async () => {
     const sdk = await load();
     const e = engine();
     sdk.setEnabled(false);
-    await sdk.resolveDeferredLink(cfg(e.fetch), { force: true });
     await sdk.reportWebOpen(cfg(e.fetch), { url: landing });
     await sdk.trackEvent(cfg(e.fetch), 'purchase', { value: 5 });
     expect(e.calls).toEqual([]);

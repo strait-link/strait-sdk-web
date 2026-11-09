@@ -1,7 +1,7 @@
 {
   "name": "@straitlink/web",
-  "version": "0.8.2",
-  "description": "Deep linking for the web: deferred match on first visit and click attribution, in a few lines.",
+  "version": "0.8.3",
+  "description": "Deep linking for the web: count link opens on your site, join conversions to the tap, and a smart app banner.",
   "keywords": [
     "deep-linking",
     "deferred-deep-linking",
