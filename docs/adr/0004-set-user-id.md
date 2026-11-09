@@ -14,7 +14,7 @@ every SDK (in-memory id, emails and phones hashed on the device, `/v1/event` bod
 - **Hashing: the pure synchronous `sha256Hex` ported verbatim from React Native.** `crypto.subtle.digest` is
   async (would make `setUserId` async and race the next `trackEvent`) and is missing on plain-http pages
   (`isSecureContext` false, e.g. a LAN dev server). No dependency added. Cost: about 2 KB gzip (compiled, unminified), and only
-  when `setUserId` is imported (tree-shaken otherwise; the `trackEvent`-only bundle is unchanged).
+  when `setUserId` is imported (tree-shaken otherwise; a `trackEvent`-only bundle grows only by a few bytes, the `userId` variable and its spread into the body).
 - **Opt-out:** `isEnabled()` is synchronous here (reads `localStorage`), so a stored "off" from an earlier
   visit always wins at `setUserId` time; no async re-check is needed (unlike React Native).
 - **No queue:** the web SDK has none (events go once with `keepalive`), so the id is in the body built at

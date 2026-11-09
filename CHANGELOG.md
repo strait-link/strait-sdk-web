@@ -7,7 +7,7 @@
   `trackEvent` calls carry the id to your `app.event` webhook (`userId`, `userIdHashed`), so you can join Strait
   events to your own users and see which campaigns bring paying ones. Emails and phone numbers are hashed in the
   browser (SHA-256) and never leave the page raw. Memory only (nothing in `localStorage`), never logged, never on
-  `reportWebOpen`, cleared and not sent while switched off. Conformance vectors v13 (`userId` group, now tested
+  `reportWebOpen`, cleared and not sent while switched off. Conformance vectors v14 (`userId` group, now tested
   here). `openapi.json`: `/v1/event` takes `userId` / `userIdHashed`.
 
 ## 0.8.4 (9 Nov 2026)
