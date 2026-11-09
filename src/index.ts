@@ -1,5 +1,6 @@
 import type { DeviceFields } from './device.js';
 import { SDK_VERSION } from './version.js';
+import { userIdField } from './user-id.js';
 
 export type { DeviceFields } from './device.js';
 export { computeSignature, h32 } from './signature.js';
@@ -78,14 +79,17 @@ const ENABLED_KEY = 'strait.enabled';
 const TAP_KEY = 'strait.lastTap';
 /** This page's value when localStorage is blocked (private mode); storage keeps it across visits. */
 let enabledHere = true;
+/** B27: the site's own user, already hashed when it was an email or phone. In memory only (this page). */
+let userId: ReturnType<typeof userIdField> = null;
 
 /**
- * Opt-out switch for consent flows (default on). Off: `reportWebOpen` and `trackEvent` send nothing and the
- * remembered tap is deleted. Kept in `localStorage`
+ * Opt-out switch for consent flows (default on). Off: `reportWebOpen` and `trackEvent` send nothing, the
+ * remembered tap is deleted and the `setUserId` id is cleared. Kept in `localStorage`
  * as `strait.enabled` across visits. The banner makes no requests and is not affected.
  */
 export function setEnabled(enabled: boolean): void {
   enabledHere = enabled;
+  if (!enabled) userId = null;
   try {
     globalThis.localStorage?.setItem(ENABLED_KEY, enabled ? '1' : '0');
     if (!enabled) globalThis.localStorage?.removeItem(TAP_KEY); // nothing kept while off
@@ -103,6 +107,18 @@ export function isEnabled(): boolean {
     /* blocked storage: fall back to this page's value */
   }
   return enabledHere;
+}
+
+/**
+ * Your own user id, after your sign-in (contract B27): later `trackEvent` calls carry it to your `app.event`
+ * webhook, so you can join Strait events to your users. An email or phone number is hashed here (SHA-256,
+ * `userIdHashed: true`) and never leaves the page raw. Kept in memory only (this page), so call it on every
+ * page load while signed in, and `setUserId(null)` on sign-out. Empty, over 128 characters or holding control
+ * characters = not sent (clears the previous id). Ignored while `setEnabled(false)` (which also clears it).
+ * Never logged, never on `reportWebOpen`.
+ */
+export function setUserId(id: string | null): void {
+  userId = isEnabled() ? userIdField(id) : null;
 }
 
 /** The answer of the deprecated `resolveDeferredLink`: a website can't get a deferred match. */
@@ -312,6 +328,7 @@ export async function trackEvent(config: StraitConfig, name: string, extra?: Tra
         ...(clickId ? { clickId } : {}),
         // String(): plain-JS sites pass number order ids; the engine only takes strings.
         ...(extra.eventId != null && extra.eventId !== '' ? { eventId: String(extra.eventId) } : {}),
+        ...(userId ?? {}), // B27: userId + userIdHashed, only when set
       }),
     });
     return res.ok;
@@ -320,5 +337,5 @@ export async function trackEvent(config: StraitConfig, name: string, extra?: Tra
   }
 }
 
-/** Namespace form: `Strait.banner({...})`, `Strait.reportWebOpen({...})`, `Strait.trackEvent({...}, 'purchase')`, `Strait.setEnabled(false)`. */
-export const Strait = { banner, resolveDeferredLink, reportWebOpen, trackEvent, setEnabled, isEnabled };
+/** Namespace form: `Strait.banner({...})`, `Strait.reportWebOpen({...})`, `Strait.trackEvent({...}, 'purchase')`, `Strait.setEnabled(false)`, `Strait.setUserId(id)`. */
+export const Strait = { banner, resolveDeferredLink, reportWebOpen, trackEvent, setEnabled, isEnabled, setUserId };

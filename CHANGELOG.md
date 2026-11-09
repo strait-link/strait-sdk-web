@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.8.5 (10 Nov 2026)
+
+- `setUserId(id)` (also `Strait.setUserId`; contract B27, shared-spec ADR 0009, ADR 0004): call it after your
+  sign-in and on every page load while the visitor is signed in, `setUserId(null)` on sign-out. Later
+  `trackEvent` calls carry the id to your `app.event` webhook (`userId`, `userIdHashed`), so you can join Strait
+  events to your own users and see which campaigns bring paying ones. Emails and phone numbers are hashed in the
+  browser (SHA-256) and never leave the page raw. Memory only (nothing in `localStorage`), never logged, never on
+  `reportWebOpen`, cleared and not sent while switched off. Conformance vectors v14 (`userId` group, now tested
+  here). `openapi.json`: `/v1/event` takes `userId` / `userIdHashed`.
+
 ## 0.8.4 (9 Nov 2026)
 
 - `/v1/open` now sends `sdkVersion` as `web/0.8.4` instead of a bare `0.8.4` (contract B25, shared-spec ADR 0007),

@@ -122,6 +122,30 @@ Input the engine would refuse (an empty name or one over 64 characters, a `value
 currency that isn't 3 letters, a bad `eventId`, a `linkId` over 128 characters) is not sent: `false` and a console warning. Events sent from a
 web page can be faked by anyone with your publishable key; send revenue you rely on from your server.
 
+### Your user on events (`setUserId`)
+
+```ts
+import { setUserId } from '@straitlink/web';
+
+setUserId(user.id);   // after your sign-in, AND on every page load while the visitor is signed in
+setUserId(null);      // on sign-out
+```
+
+Later `trackEvent` calls carry this id to your `app.event` webhook (`userId`, `userIdHashed`), so you can
+join Strait's tap, link and campaign to your own users and see which campaigns bring paying ones
+(contract B27). It is kept in memory only, for this page: nothing is written to `localStorage` or cookies,
+so a reload or a new page starts without it. Call it on each page load while the visitor is signed in (for
+example where your app reads its session). It is never logged, ignored while `setEnabled(false)` (which
+also clears it), and not sent with `reportWebOpen`.
+
+Emails and phone numbers never leave the page raw: an id with `@` is sent as the SHA-256 hex of its
+lower-cased form, one made only of digits, spaces and `+ ( ) . -` with 8-15 digits as the SHA-256 hex of
+its digits, with `userIdHashed: true` (hashed in the browser, synchronously, also on plain-http pages). To
+join, hash your own value the same way (`sha256("priya@example.com")`, `sha256("919876543210")`). A plain
+numeric id of 8-15 digits is hashed too; prefix it (`u_12345678`) to keep it readable. Ids longer than 128
+characters or holding control characters are not sent (and clear the previous one). Anyone with your
+publishable key can send any `userId`, so treat it as a claim, like revenue sent from a web page.
+
 ### Deferred match: not on the web
 
 `resolveDeferredLink` is **deprecated** (0.8.3) and will be **removed in 0.9.0**. A deferred match needs
@@ -144,7 +168,7 @@ What to use instead:
 
 `reportWebOpen` sends your publishable key, the tap id from the URL and the page URL to `/v1/open`;
 `trackEvent` sends the event fields you pass to `/v1/event`. No device fields, no cookies, and the client
-never sees or sends an IP. `/v1/open` also carries this SDK's version (`sdkVersion`, e.g. `web/0.8.4`) so support can see which
+never sees or sends an IP. `/v1/open` also carries this SDK's version (`sdkVersion`, e.g. `web/0.8.5`) so support can see which
 version a visit used; no app version is sent from the web.
 
 ## User consent / opt-out
@@ -203,6 +227,7 @@ Preview every option locally: `npm run build`, serve the repo root, open `exampl
 | `trackEvent(config, name, extra?)` | conversion / revenue event (`value`, `currency`, `linkId`, `clickId`, `eventId`); attaches the tap this visit came from; `true` when accepted |
 | `banner(options)` / `Strait.banner(options)` | smart app banner for mobile web; returns `{ element, dismiss, remove }` or `null` when not shown |
 | `setEnabled(enabled)` / `isEnabled()` | opt-out switch for consent flows: off = nothing sent; kept in `localStorage` |
+| `setUserId(id \| null)` | your own user on later `trackEvent` calls (emails / phones hashed in the browser); memory only, so call it on every page load while signed in. [More](#your-user-on-events-setuserid) |
 | `computeSignature(inputs)` | the canonical signature (advanced/testing) |
 | `h32(s)` | the canonical hash (advanced/testing) |
 
