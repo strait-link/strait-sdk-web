@@ -55,14 +55,14 @@ const result = await resolveDeferredLink({ publishableKey: 'st_pub_live_…', en
 console.log(result);
 ```
 
-**You should see:** `{ matched: false, matchMethod: 'none', … }` in the console, and one `POST /v1/match` answering `200` in **DevTools → Network**. A browser that tapped one of your links shortly before gets `matched: true` and the link's `longUrl`.
+**You should see:** `{ matched: false, matchMethod: 'none', … }` in the console, and one `POST /v1/match` answering `200` in **DevTools → Network**. Expect `matched: false` on a website for now, even right after tapping one of your links: Strait saves the device details a match needs only on the iPhone tap page (the **Get the app** step, for app installs), never for a tap that goes to your website. To credit a website visit to the tap it came from, use [`reportWebOpen`](#count-opens-on-your-website).
 
 ## Platform features
 
 | Feature | Status | Notes |
 |---|---|---|
 | Web links open the right page | ● Live | Handled by Strait; nothing to install. |
-| Deferred match on first visit (`resolveDeferredLink`) | ◐ Beta | At most once per browser. Never throws. |
+| Deferred match on first visit (`resolveDeferredLink`) | ◐ Beta | At most once per browser. Never throws. No match for website visitors yet (see the quick start); `reportWebOpen` credits a landing to its tap. |
 | Link opens on your website (`reportWebOpen`) | ◐ Beta | Counts a page view as an open only when the URL carries `strait_click` (a landing from a Strait tap), joined to that tap. Needs the engine release that adds the tap id to web landings (on by default; turn it off per workspace or per link). |
 | Smart app banner for mobile web (`banner`) | ◐ Beta | Styled with the Strait design system, light and dark. No requests of its own (apart from loading your `icon`), no cookies. [Docs](https://straitlink.in/docs/smart-banner/) |
 | iPhone install matching | Opt-in | Off until you choose it; proven on iPhone simulators, the real-iPhone run waits on our App Store listing. Runs in your app through the native SDKs, not in this package. Your choice in Dashboard → Settings → iPhone installs: device matching, paste handoff, both or neither, read from Strait at runtime. Device matching is off by default. iPhone matches are labelled Estimated until measured. |
@@ -80,8 +80,10 @@ npm install @straitlink/web
 
 ## Use
 
-On first launch, ask Strait whether this device recently clicked one of your
-links — and route to the deferred destination:
+On first launch, ask Strait whether it has a deferred link for this browser, and route to its
+destination. It answers `matched: true` only when Strait saved a match for this device. Today that
+happens only on the iPhone tap page (for app installs), never for a tap that goes to your website, so
+a website gets `matched: false`; use [`reportWebOpen`](#count-opens-on-your-website) to credit a visit to its tap:
 
 ```ts
 import { resolveDeferredLink } from '@straitlink/web';
