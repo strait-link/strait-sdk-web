@@ -3,7 +3,7 @@
   "info": {
     "title": "Strait API",
     "version": "1.0.0",
-    "description": "Deep-linking + deferred-match API. Two keys, both in Dashboard → Get started: the **secret key** (`Authorization: Bearer st_live_…`, server-side only) for the link endpoints, and the **publishable key** (`publishableKey: \"st_pub_live_…\"` in the JSON body, safe in apps and websites) for /v1/match, /v1/referrer, /v1/resolve, /v1/open and /v1/event. Rotating the publishable key keeps the previous key working for 7 days; responses to the old key carry `Strait-Key-Deprecated: <ISO expiry>`, and after that it gets 401. Operations marked `x-internal: true` are used by the Strait dashboard or by Stripe and are not part of the public API. Errors are always JSON `{ \"error\": \"…\" }`: malformed JSON bodies get 400, unknown /v1 routes 404."
+    "description": "Deep-linking + deferred-match API. Two keys, both in Dashboard → Get started: the **secret key** (`Authorization: Bearer st_live_…`, server-side only) for the link endpoints, and the **publishable key** (`publishableKey: \"st_pub_live_…\"` in the JSON body, safe in apps and websites) for /v1/match, /v1/referrer, /v1/resolve, /v1/lookup, /v1/open and /v1/event. Rotating the publishable key keeps the previous key working for 7 days; responses to the old key carry `Strait-Key-Deprecated: <ISO expiry>`, and after that it gets 401. Operations marked `x-internal: true` are used by the Strait dashboard or by Stripe and are not part of the public API. Errors are always JSON `{ \"error\": \"…\" }`: malformed JSON bodies get 400, unknown /v1 routes 404."
   },
   "servers": [
     {
@@ -17,7 +17,7 @@
     },
     {
       "name": "Analytics",
-      "description": "Taps, app opens, installs and conversions per link, channel, day or platform (secret key)."
+      "description": "Taps, app opens, installs and conversions per link, channel, day, platform, campaign, country or UTM tag (secret key)."
     },
     {
       "name": "Referrals",
@@ -99,7 +99,7 @@
               "string",
               "null"
             ],
-            "example": "HTTP 500 | timeout | unsafe_target | webhook_removed"
+            "example": "HTTP 500 | timeout | dns_failed | unsafe_target | webhook_removed"
           },
           "nextAttemptAt": {
             "type": [
@@ -382,7 +382,7 @@
                 }
               }
             },
-            "description": "Up to 5 rules, first match wins. When the tap's country (from Cloudflare, ISO 3166-1 alpha-2) is in a rule's countries, the rule's url replaces the web / fallback destination (iosFallbackUrl, androidFallbackUrl, desktopUrl, longUrl as a web page, the workspace fallback). Opening the app and the app-store hand-offs are unchanged. The country is used for this decision only and is never stored."
+            "description": "Up to 5 rules, first match wins. When the tap's country (from Cloudflare, ISO 3166-1 alpha-2) is in a rule's countries, the rule's url replaces the web / fallback destination (iosFallbackUrl, androidFallbackUrl, desktopUrl, longUrl as a web page, the workspace fallback). Opening the app and the app-store hand-offs are unchanged. The country is also stored with the tap as its 2-letter code, for analytics (group=country)."
           },
           "legacyHost": {
             "type": "string",
@@ -567,7 +567,7 @@
                 }
               }
             },
-            "description": "Up to 5 rules, first match wins. When the tap's country (from Cloudflare, ISO 3166-1 alpha-2) is in a rule's countries, the rule's url replaces the web / fallback destination (iosFallbackUrl, androidFallbackUrl, desktopUrl, longUrl as a web page, the workspace fallback). Opening the app and the app-store hand-offs are unchanged. The country is used for this decision only and is never stored."
+            "description": "Up to 5 rules, first match wins. When the tap's country (from Cloudflare, ISO 3166-1 alpha-2) is in a rule's countries, the rule's url replaces the web / fallback destination (iosFallbackUrl, androidFallbackUrl, desktopUrl, longUrl as a web page, the workspace fallback). Opening the app and the app-store hand-offs are unchanged. The country is also stored with the tap as its 2-letter code, for analytics (group=country)."
           },
           "legacyHost": {
             "type": "string",
@@ -593,6 +593,451 @@
             "description": "Optional: visitors must enter it before the link opens (link-preview bots still get the preview card). Stored hashed, never returned; the link shows passwordProtected: true."
           }
         }
+      },
+      "FunnelByPlatform": {
+        "type": "object",
+        "description": "People at this step by the platform of their tap (tablets and unknown devices are `other`).",
+        "properties": {
+          "android": {
+            "type": "integer"
+          },
+          "ios": {
+            "type": "integer"
+          },
+          "desktop": {
+            "type": "integer"
+          },
+          "other": {
+            "type": "integer"
+          }
+        }
+      },
+      "JourneyFunnelBody": {
+        "type": "object",
+        "properties": {
+          "link_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The link's id, or null for the whole workspace."
+          },
+          "steps": {
+            "type": "array",
+            "description": "Always four, in order, never increasing: clicked, app_or_store, opened_app, reached_screen.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string",
+                  "enum": [
+                    "clicked",
+                    "app_or_store",
+                    "opened_app",
+                    "reached_screen"
+                  ]
+                },
+                "count": {
+                  "type": "integer"
+                },
+                "by_platform": {
+                  "$ref": "#/components/schemas/FunnelByPlatform"
+                },
+                "split": {
+                  "type": "object",
+                  "description": "opened_app only: already had the app, or installed it first (a matched install names the tap, whatever opened the app after it).",
+                  "properties": {
+                    "had_app": {
+                      "type": "integer"
+                    },
+                    "installed": {
+                      "type": "integer"
+                    }
+                  }
+                },
+                "certainty": {
+                  "type": "object",
+                  "description": "reached_screen only: exact (app link, direct open, Play Install Referrer, clipboard token) or estimated (iPhone device match).",
+                  "properties": {
+                    "exact": {
+                      "type": "integer"
+                    },
+                    "estimated": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "phone_clicks": {
+            "type": "integer",
+            "description": "Taps minus the `computer` exit: the base of step 2."
+          },
+          "exits": {
+            "type": "array",
+            "description": "Who left before step 2, in this order: computer (sent to your website), phone_website (a phone sent to your website), in_app_browser (saw the open-in-app page inside Instagram, WhatsApp… and did not press it), other (not tracked).",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string",
+                  "enum": [
+                    "computer",
+                    "phone_website",
+                    "in_app_browser",
+                    "other"
+                  ]
+                },
+                "count": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "drops": {
+            "type": "array",
+            "description": "store_no_open (after app_or_store: sent to the store, no app open seen) and open_failed (after opened_app: the app opened but the link did not resolve; `reasons` such as expired, not_found, network, no_match, unknown).",
+            "items": {
+              "type": "object",
+              "properties": {
+                "after": {
+                  "type": "string"
+                },
+                "key": {
+                  "type": "string",
+                  "enum": [
+                    "store_no_open",
+                    "open_failed"
+                  ]
+                },
+                "count": {
+                  "type": "integer"
+                },
+                "by_platform": {
+                  "$ref": "#/components/schemas/FunnelByPlatform"
+                },
+                "reasons": {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "prefixItems": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "integer"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "untied_failed_opens": {
+            "type": "object",
+            "description": "App opens that failed and name no tap (the link expired or was not found, so no tap was recorded): no step can hold them. With a filter, only those whose link fits it.",
+            "properties": {
+              "count": {
+                "type": "integer"
+              },
+              "by_platform": {
+                "$ref": "#/components/schemas/FunnelByPlatform"
+              },
+              "reasons": {
+                "type": "array",
+                "items": {
+                  "type": "array",
+                  "prefixItems": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "integer"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "installs": {
+            "type": "object",
+            "description": "Installs of the period (GET /v1/analytics `installs`), by where the tap was. credited = from_period_clicks + from_earlier_clicks + from_link_no_click; total = credited + organic; credited = exact + estimated (estimated: an iPhone device match). from_period_clicks = steps[2].split.installed.",
+            "properties": {
+              "total": {
+                "type": "integer"
+              },
+              "credited": {
+                "type": "integer"
+              },
+              "from_period_clicks": {
+                "type": "integer"
+              },
+              "from_earlier_clicks": {
+                "type": "integer"
+              },
+              "from_link_no_click": {
+                "type": "integer",
+                "description": "Credited to a link, but its tap is not in the record (an iPhone match entry, or a tap older than retention)."
+              },
+              "organic": {
+                "type": "integer"
+              },
+              "exact": {
+                "type": "integer"
+              },
+              "estimated": {
+                "type": "integer"
+              },
+              "tied_to_click": {
+                "type": "integer",
+                "description": "from_period_clicks + from_earlier_clicks: installs tied to a recorded click. credited = tied_to_click + from_link_no_click."
+              },
+              "tied_exact": {
+                "type": "integer",
+                "description": "Of tied_to_click, exact (tied_exact + tied_estimated = tied_to_click)."
+              },
+              "tied_estimated": {
+                "type": "integer",
+                "description": "Of tied_to_click, estimated (an iPhone device match)."
+              },
+              "estimated_from_earlier_clicks": {
+                "type": "integer",
+                "description": "Estimated installs whose click was before the period (why iPhone installs can exceed this period's iPhone app opens)."
+              },
+              "click_to_install": {
+                "type": "object",
+                "description": "Time from click to install: the middle value over tied installs whose first open came through the store (n of them). A first open that came directly from the link (app link / custom scheme: the app was already installed) is no install time and is counted apart. n + first_open_from_link = tied_to_click.",
+                "properties": {
+                  "median_ms": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "n": {
+                    "type": "integer"
+                  },
+                  "first_open_from_link": {
+                    "type": "integer"
+                  }
+                }
+              },
+              "by_platform": {
+                "type": "object",
+                "description": "The same parts per platform of the install (android, ios, other); each part adds up across platforms. from_period_clicks per platform is never above steps[2].by_platform for it.",
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/FunnelInstallParts"
+                }
+              }
+            }
+          },
+          "match_certainty": {
+            "type": "object",
+            "description": "The two exact / estimated numbers, each named by what it counts: `installs` = credited installs (exact: Play referrer, clipboard, app hand-off; estimated: an iPhone device match); `reached_screen` = clicks that reached the screen (= steps[3]). They count different things and never add up to each other.",
+            "properties": {
+              "installs": {
+                "type": "object",
+                "properties": {
+                  "of": {
+                    "const": "credited_installs"
+                  },
+                  "total": {
+                    "type": "integer"
+                  },
+                  "exact": {
+                    "type": "integer"
+                  },
+                  "estimated": {
+                    "type": "integer"
+                  }
+                }
+              },
+              "reached_screen": {
+                "type": "object",
+                "properties": {
+                  "of": {
+                    "const": "clicks_reached_screen"
+                  },
+                  "total": {
+                    "type": "integer"
+                  },
+                  "exact": {
+                    "type": "integer"
+                  },
+                  "estimated": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          },
+          "website_opens": {
+            "type": "integer",
+            "description": "Clicks whose website reported the landing (web SDK reportWebOpen): they opened your website, not the app. Never an app open or an install."
+          },
+          "test_data_left_out": {
+            "type": "object",
+            "description": "Clicks and installs of Strait's own test links (our smoke / QA / load checks in our own workspaces) in this range, left out of every number above. Always 0 for your workspace.",
+            "properties": {
+              "clicks": {
+                "type": "integer"
+              },
+              "installs": {
+                "type": "integer"
+              }
+            }
+          },
+          "revenue": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            },
+            "description": "Revenue after a tap: POST /v1/event values in the period that carry a tap of this slice (the tap may be older), per ISO currency (never summed across currencies)."
+          },
+          "days": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "description": "Taps and reached_screen per local day (`tz`) of the range, every day listed (zeros included); null for a range over 400 days. The days add up to steps 1 and 4.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "day": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "clicked": {
+                  "type": "integer"
+                },
+                "reached_screen": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "did_something": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Of reached_screen, how many sent at least one event (POST /v1/event) with that tap; null when your app has never sent an event."
+          },
+          "unmatched_first_opens": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "First opens after an install we could not connect to any tap; whole workspace only (null with a filter)."
+          },
+          "installs_without_click": {
+            "type": "integer",
+            "description": "Installs matched to a link but not to one tap."
+          },
+          "expired_taps": {
+            "type": "integer",
+            "description": "Taps on expired links: in no step."
+          }
+        }
+      },
+      "FunnelInstallParts": {
+        "type": "object",
+        "properties": {
+          "credited": {
+            "type": "integer"
+          },
+          "tied_to_click": {
+            "type": "integer"
+          },
+          "from_period_clicks": {
+            "type": "integer"
+          },
+          "from_earlier_clicks": {
+            "type": "integer"
+          },
+          "from_link_no_click": {
+            "type": "integer"
+          },
+          "organic": {
+            "type": "integer"
+          },
+          "exact": {
+            "type": "integer"
+          },
+          "estimated": {
+            "type": "integer"
+          }
+        }
+      },
+      "JourneyFunnel": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/JourneyFunnelBody"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "range": {
+                "type": "object",
+                "properties": {
+                  "from": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "to": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "tz": {
+                    "type": "string"
+                  },
+                  "clamped_from": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                }
+              },
+              "previous": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/JourneyFunnelBody"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "With compare=1 on a paid plan: the period of equal length just before (null on Free)."
+              },
+              "plan": {
+                "type": "object",
+                "description": "Free sees every number for 30 days; `locked` names what a paid plan adds (compare, campaign_results, csv, long_range).",
+                "properties": {
+                  "id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "history_days": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "locked": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
       },
       "AnalyticsMetrics": {
         "type": "object",
@@ -639,7 +1084,7 @@
                   "string",
                   "null"
                 ],
-                "description": "The group value: a UTC day (YYYY-MM-DD), a channel (whatsapp, instagram, direct…), a link id, or a platform (android, ios, desktop)."
+                "description": "The group value: a UTC day (YYYY-MM-DD), a channel (whatsapp, instagram, direct…), a link id, a platform (android, ios, desktop), the link's campaign, a 2-letter country code (IN, US…) or a UTM tag's value as tagged. null for group=campaign, country or utm_* means no value: the link has no campaign, the country was not known, or the tap had no such tag (also rows with no tap, such as an install matched to a link without its tap). An app or SDK version as reported (4.12.0, 0.9.0) for group=app_version or sdk_version, where null holds every tap and conversion and the opens from an SDK that sent no version."
               },
               "slug": {
                 "type": [
@@ -803,6 +1248,20 @@
               "string",
               "null"
             ]
+          },
+          "appVersion": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "App version that first opened this tap (else its install), as the SDK reported it"
+          },
+          "sdkVersion": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Strait SDK version of that open"
           }
         }
       },
@@ -1011,12 +1470,18 @@
             },
             "description": "/v1/match with platform 'ios' only: the workspace's current iPhone deferred-link choice (device matching and/or paste handoff, the customer's choice in the dashboard; opt-in, off by default), read live on every lookup so a change in the dashboard applies without an app release. The SDKs never store it (contract B19)."
           },
+          "ipv4Match": {
+            "type": "string",
+            "format": "uri",
+            "example": "https://v4.straitlink.in/v1/match",
+            "description": "iPhone first-launch check only (platform 'ios', openId sent, record not false): present when this ask came over IPv6 and found no tap (reason no_candidate). The phone may have tapped over IPv4: the SDK sends the same request (same openId, same fields) once more to this IPv4-only URL. A match there answers exact_ext with reason ip_family (match.confidence probable, never exact) and the install recorded by the first ask becomes matched (counted once). Absent otherwise."
+          },
           "reasons": {
             "type": "array",
             "items": {
               "type": "string"
             },
-            "description": "Why the matcher matched or refused, as short codes (never personal data). Exact matcher: exact_ext, exact_core, no_candidate, ambiguous (two identical-looking taps for different links: Strait refuses rather than guesses), race_lost (another lookup already took this tap), device_matching_off (the workspace turned iPhone install matching off). Paste handoff: clipboard, handoff_unknown, handoff_used, handoff_expired. Scored matches add signal codes (e.g. ipv6_64, ip_exact, asn, lang_full, dt_42s). New codes may be added; treat unknown codes as informational."
+            "description": "Why the matcher matched or refused, as short codes (never personal data). Exact matcher: exact_ext, exact_core, no_candidate, ambiguous (two identical-looking taps for different links: Strait refuses rather than guesses), race_lost (another lookup already took this tap), device_matching_off (the workspace turned iPhone install matching off), ip_family (matched across IPv4 / IPv6: the IPv4-only probe host). Paste handoff: clipboard, handoff_unknown, handoff_used, handoff_expired. Scored matches add signal codes (e.g. ipv6_64, ip_exact, asn, lang_full, dt_42s). New codes may be added; treat unknown codes as informational."
           }
         }
       }
@@ -2029,7 +2494,7 @@
         "tags": [
           "Analytics"
         ],
-        "description": "Taps, app opens, installs, conversions and revenue for your workspace in [from, to), for every link or one, optionally grouped by day, channel, link or platform. The numbers use the same definitions as the dashboard. Each item counts at its own time (a tap at its tap time, an install at its install time); days are UTC. Secret key only (a publishable key gets 401). At most 92 days per call and 30 calls a minute per workspace (429 with Retry-After).",
+        "description": "Taps, app opens, installs, conversions and revenue for your workspace in [from, to), for every link or one, optionally grouped by day, channel, link, platform, campaign, country or one of the five UTM tags. The numbers use the same definitions as the dashboard. Each item counts at its own time (a tap at its tap time, an install at its install time); days are UTC. Secret key only (a publishable key gets 401). At most 92 days per call and 30 calls a minute per workspace (429 with Retry-After).",
         "security": [
           {
             "bearerAuth": []
@@ -2070,7 +2535,7 @@
             "name": "group",
             "in": "query",
             "required": false,
-            "description": "Split the numbers into rows. Default none (totals only).",
+            "description": "Split the numbers into rows. Default none (totals only). `campaign` is the link's campaign (as in the dashboard). `country` is the visitor's country from their network address (2-letter code; taps since 5 Nov 2026). `utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, `utm_content` are the tap's UTM tags: the ones on the tapped link (`?utm_medium=story`), else the ones in its destination URL (taps since 5 Nov 2026; utm_source as tagged, where `channel` is cleaned and also uses the app or site the tap came from). App opens, installs and conversions take the country and UTM tags of the tap they came from. `app_version` and `sdk_version` are the app's and the Strait SDK's version an app open or install itself reported (`appVersion` / `sdkVersion`, accepted since 5 Nov 2026 from SDKs that send them); taps and conversions have no version, so they count under `null`, as do opens that sent none.",
             "schema": {
               "type": "string",
               "enum": [
@@ -2078,7 +2543,16 @@
                 "day",
                 "channel",
                 "link",
-                "platform"
+                "platform",
+                "campaign",
+                "country",
+                "utm_source",
+                "utm_medium",
+                "utm_campaign",
+                "utm_term",
+                "utm_content",
+                "app_version",
+                "sdk_version"
               ],
               "default": "none"
             }
@@ -2120,7 +2594,16 @@
                         "day",
                         "channel",
                         "link",
-                        "platform"
+                        "platform",
+                        "campaign",
+                        "country",
+                        "utm_source",
+                        "utm_medium",
+                        "utm_campaign",
+                        "utm_term",
+                        "utm_content",
+                        "app_version",
+                        "sdk_version"
                       ]
                     },
                     "totals": {
@@ -2197,6 +2680,354 @@
           },
           "404": {
             "description": "No active link with this slug in the key's workspace"
+          },
+          "429": {
+            "description": "Over 30 calls a minute for this workspace"
+          }
+        }
+      }
+    },
+    "/v1/funnel": {
+      "get": {
+        "summary": "Read the journey funnel",
+        "operationId": "getFunnel",
+        "tags": [
+          "Analytics"
+        ],
+        "description": "Of the people who tapped your links in [from, to), how many (1) tapped (`clicked`), (2) reached your app or the App Store / Play Store, (3) opened the app (already had it, or installed it and opened it), and (4) reached the screen the link points to, split by platform, with the exits before step 2 (a computer, the website on a phone, stuck in an in-app browser, not tracked) and the drop-offs between steps (with reasons). Each person counts at a step only if they counted at every step before it, and is counted by their tap time. Step 1 equals GET /v1/analytics `taps` and the dashboard's first step; step 4 its \"reached the screen\". What we cannot see: whether the store page loaded (step 2 means we sent them there), installs never opened, and whether your app drew the screen (step 4 means the app received the exact link). iPhone installs matched by device signals are `certainty.estimated`. Secret key (full or read access); at most 92 days per call and 30 calls a minute per workspace (429 with Retry-After).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "description": "Inclusive start: ISO date (UTC), ISO date-time or epoch ms. Default: 30 days before `to`.",
+            "schema": {
+              "type": "string",
+              "example": "2026-10-01"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "description": "Exclusive end, same formats. Default: now.",
+            "schema": {
+              "type": "string",
+              "example": "2026-11-01"
+            }
+          },
+          {
+            "name": "tz",
+            "in": "query",
+            "required": false,
+            "description": "IANA time zone the range was chosen in (echoed in `range.tz`). Default UTC.",
+            "schema": {
+              "type": "string",
+              "example": "Asia/Kolkata"
+            }
+          },
+          {
+            "name": "link_id",
+            "in": "query",
+            "required": false,
+            "description": "Only this link: its id (also a paused link) or its active slug.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,64}$"
+            }
+          },
+          {
+            "name": "campaign",
+            "in": "query",
+            "required": false,
+            "description": "Only this campaign (the link's, else the tap's); `(no campaign)` for none.",
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "channel",
+            "in": "query",
+            "required": false,
+            "description": "Only this channel (whatsapp, instagram, …); `direct` for none.",
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "compare",
+            "in": "query",
+            "required": false,
+            "description": "1: also return `previous`, the same numbers for the period of equal length just before.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "0",
+                "1"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The funnel",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JourneyFunnel"
+                },
+                "example": {
+                  "range": {
+                    "from": "2026-10-31T18:30:00.000Z",
+                    "to": "2026-11-07T18:30:00.000Z",
+                    "tz": "Asia/Kolkata",
+                    "clamped_from": null
+                  },
+                  "link_id": null,
+                  "steps": [
+                    {
+                      "key": "clicked",
+                      "count": 4859,
+                      "by_platform": {
+                        "android": 1492,
+                        "ios": 758,
+                        "desktop": 2609,
+                        "other": 0
+                      }
+                    },
+                    {
+                      "key": "app_or_store",
+                      "count": 1210,
+                      "by_platform": {
+                        "android": 1101,
+                        "ios": 109,
+                        "desktop": 0,
+                        "other": 0
+                      }
+                    },
+                    {
+                      "key": "opened_app",
+                      "count": 701,
+                      "by_platform": {
+                        "android": 598,
+                        "ios": 103,
+                        "desktop": 0,
+                        "other": 0
+                      },
+                      "split": {
+                        "had_app": 452,
+                        "installed": 249
+                      }
+                    },
+                    {
+                      "key": "reached_screen",
+                      "count": 687,
+                      "by_platform": {
+                        "android": 590,
+                        "ios": 97,
+                        "desktop": 0,
+                        "other": 0
+                      },
+                      "certainty": {
+                        "exact": 590,
+                        "estimated": 97
+                      }
+                    }
+                  ],
+                  "phone_clicks": 2250,
+                  "exits": [
+                    {
+                      "key": "computer",
+                      "count": 2609
+                    },
+                    {
+                      "key": "phone_website",
+                      "count": 468
+                    },
+                    {
+                      "key": "in_app_browser",
+                      "count": 567
+                    },
+                    {
+                      "key": "other",
+                      "count": 5
+                    }
+                  ],
+                  "drops": [
+                    {
+                      "after": "app_or_store",
+                      "key": "store_no_open",
+                      "count": 509,
+                      "by_platform": {
+                        "android": 503,
+                        "ios": 6,
+                        "desktop": 0,
+                        "other": 0
+                      }
+                    },
+                    {
+                      "after": "opened_app",
+                      "key": "open_failed",
+                      "count": 14,
+                      "by_platform": {
+                        "android": 8,
+                        "ios": 6,
+                        "desktop": 0,
+                        "other": 0
+                      },
+                      "reasons": [
+                        [
+                          "expired",
+                          6
+                        ],
+                        [
+                          "not_found",
+                          4
+                        ],
+                        [
+                          "network",
+                          4
+                        ]
+                      ]
+                    }
+                  ],
+                  "untied_failed_opens": {
+                    "count": 10,
+                    "by_platform": {
+                      "android": 10,
+                      "ios": 0,
+                      "desktop": 0,
+                      "other": 0
+                    },
+                    "reasons": [
+                      [
+                        "expired",
+                        6
+                      ],
+                      [
+                        "not_found",
+                        4
+                      ]
+                    ]
+                  },
+                  "installs": {
+                    "total": 312,
+                    "credited": 30,
+                    "tied_to_click": 17,
+                    "tied_exact": 13,
+                    "tied_estimated": 4,
+                    "estimated_from_earlier_clicks": 0,
+                    "from_period_clicks": 17,
+                    "from_earlier_clicks": 0,
+                    "from_link_no_click": 13,
+                    "organic": 282,
+                    "exact": 14,
+                    "estimated": 16,
+                    "click_to_install": {
+                      "median_ms": 4920,
+                      "n": 7,
+                      "first_open_from_link": 10
+                    },
+                    "by_platform": {
+                      "android": {
+                        "credited": 13,
+                        "tied_to_click": 13,
+                        "from_period_clicks": 13,
+                        "from_earlier_clicks": 0,
+                        "from_link_no_click": 0,
+                        "organic": 11,
+                        "exact": 13,
+                        "estimated": 0
+                      },
+                      "ios": {
+                        "credited": 16,
+                        "tied_to_click": 4,
+                        "from_period_clicks": 4,
+                        "from_earlier_clicks": 0,
+                        "from_link_no_click": 12,
+                        "organic": 266,
+                        "exact": 0,
+                        "estimated": 16
+                      },
+                      "other": {
+                        "credited": 1,
+                        "tied_to_click": 0,
+                        "from_period_clicks": 0,
+                        "from_earlier_clicks": 0,
+                        "from_link_no_click": 1,
+                        "organic": 5,
+                        "exact": 1,
+                        "estimated": 0
+                      }
+                    }
+                  },
+                  "revenue": {
+                    "INR": 1996,
+                    "USD": 346.97
+                  },
+                  "days": [
+                    {
+                      "day": "2026-11-01",
+                      "clicked": 702,
+                      "reached_screen": 101
+                    },
+                    {
+                      "day": "2026-11-02",
+                      "clicked": 688,
+                      "reached_screen": 97
+                    }
+                  ],
+                  "did_something": 196,
+                  "unmatched_first_opens": 196,
+                  "installs_without_click": 0,
+                  "expired_taps": 1,
+                  "match_certainty": {
+                    "installs": {
+                      "of": "credited_installs",
+                      "total": 30,
+                      "exact": 14,
+                      "estimated": 16
+                    },
+                    "reached_screen": {
+                      "of": "clicks_reached_screen",
+                      "total": 687,
+                      "exact": 590,
+                      "estimated": 97
+                    }
+                  },
+                  "test_data_left_out": {
+                    "clicks": 0,
+                    "installs": 0
+                  },
+                  "website_opens": 0,
+                  "previous": null,
+                  "plan": {
+                    "id": "starter",
+                    "history_days": null,
+                    "locked": []
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad from / to (or a range over 92 days), tz, link_id, campaign, channel or compare"
+          },
+          "401": {
+            "description": "Missing or invalid secret key, or a publishable key"
+          },
+          "403": {
+            "description": "The key is limited to links"
+          },
+          "404": {
+            "description": "No link with this id or slug in the key's workspace"
           },
           "429": {
             "description": "Over 30 calls a minute for this workspace"
@@ -2316,7 +3147,9 @@
                       "isNewUser": false,
                       "installedAt": null,
                       "installMatched": null,
-                      "matchMethod": null
+                      "matchMethod": null,
+                      "appVersion": null,
+                      "sdkVersion": null
                     }
                   ],
                   "nextCursor": "WyIyMDI2LTEwLTAxVDEwOjAwOjAwLjAwMDAwMCswMDowMCIsIjlhMWM3ZTUyIl0"
@@ -2473,7 +3306,7 @@
         "tags": [
           "Analytics"
         ],
-        "description": "Where your workspace stands against its plan this calendar month (UTC): billed taps and new links, and what the plan includes (null = no limit). `level` is ok, warn from 80 % of the included taps, over from 100 %. Over your plan, links and deferred matching keep working: nothing here ever stops a redirect. `new_links_paused` is true at twice the included taps or at the plan's new-link limit; creating a link then answers 402 until you upgrade or the month ends. Secret key only (a publishable key gets 401); 30 calls a minute per workspace (429 with Retry-After).",
+        "description": "Where your workspace stands against its plan this calendar month (IST, India Standard Time, UTC+05:30): billed taps and new links, and what the plan includes (null = no limit). `level` is ok, warn from 80 % of the included taps, over from 100 %. Over your plan, links and deferred matching keep working: nothing here ever stops a redirect. `new_links_paused` is true at twice the included taps or at the plan's new-link limit; creating a link then answers 402 until you upgrade or the month ends. Secret key only (a publishable key gets 401); 30 calls a minute per workspace (429 with Retry-After).",
         "security": [
           {
             "bearerAuth": []
@@ -2490,7 +3323,7 @@
                     "month": {
                       "type": "string",
                       "example": "2026-10",
-                      "description": "YYYY-MM, UTC"
+                      "description": "YYYY-MM, the plan month in IST (UTC+05:30)"
                     },
                     "plan": {
                       "type": "string",
@@ -2913,19 +3746,21 @@
                   "timezone": {
                     "type": "string"
                   },
-                  "record": {
-                    "type": "boolean",
-                    "description": "false = a read only (SDK checkDeferred): answer the match, record no install, open or webhook. Omit for the real first-launch check. While the workspace's test window is open (Dashboard -> Get started -> Test mode, 15 minutes), a read only gets the newest tap since the window opened, once (matchMethod test, test:true)."
-                  },
                   "appVersion": {
                     "type": "string",
                     "maxLength": 64,
-                    "description": "The app's version (1-64 printable ASCII characters); anything else is ignored. Optional."
+                    "example": "4.12.0",
+                    "description": "The app's own version (iOS CFBundleShortVersionString, Android versionName), kept on the open. 1-64 printable ASCII characters; anything else is ignored, never an error."
                   },
                   "sdkVersion": {
                     "type": "string",
                     "maxLength": 64,
-                    "description": "The SDK's version (1-64 printable ASCII characters); anything else is ignored. Optional."
+                    "example": "0.9.0",
+                    "description": "The Strait SDK version, kept on the open. Same rule as appVersion."
+                  },
+                  "record": {
+                    "type": "boolean",
+                    "description": "false = a read only (SDK checkDeferred): answer the match, record no install, open or webhook. Omit for the real first-launch check. While the workspace's test window is open (Dashboard -> Get started -> Test mode, 15 minutes), a read only gets the newest tap since the window opened, once (matchMethod test, test:true)."
                   }
                 }
               },
@@ -3016,6 +3851,18 @@
                   "at": {
                     "type": "number",
                     "description": "When the app opened (epoch ms)."
+                  },
+                  "appVersion": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "example": "4.12.0",
+                    "description": "The app's own version (iOS CFBundleShortVersionString, Android versionName), kept on the open. 1-64 printable ASCII characters; anything else is ignored, never an error."
+                  },
+                  "sdkVersion": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "example": "0.9.0",
+                    "description": "The Strait SDK version, kept on the open. Same rule as appVersion."
                   }
                 }
               },
@@ -3180,6 +4027,18 @@
                     "type": "string",
                     "default": "android"
                   },
+                  "appVersion": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "example": "4.12.0",
+                    "description": "The app's own version (iOS CFBundleShortVersionString, Android versionName), kept on the open. 1-64 printable ASCII characters; anything else is ignored, never an error."
+                  },
+                  "sdkVersion": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "example": "0.9.0",
+                    "description": "The Strait SDK version, kept on the open. Same rule as appVersion."
+                  },
                   "record": {
                     "type": "boolean",
                     "description": "false = a read only (SDK checkDeferred): answer the match, record no install, open or webhook. Omit for the real first-launch check."
@@ -3279,6 +4138,18 @@
                       "tablet"
                     ],
                     "description": "What the app runs on (iPad = tablet), stored on the tap this open records. iPadOS Safari sends a Mac user agent, so browser taps from an iPad count as desktop."
+                  },
+                  "appVersion": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "example": "4.12.0",
+                    "description": "The app's own version (iOS CFBundleShortVersionString, Android versionName), kept on the open. 1-64 printable ASCII characters; anything else is ignored, never an error."
+                  },
+                  "sdkVersion": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "example": "0.9.0",
+                    "description": "The Strait SDK version, kept on the open. Same rule as appVersion."
                   }
                 }
               },
@@ -3295,7 +4166,7 @@
         },
         "responses": {
           "200": {
-            "description": "{ matched, longUrl?, linkId?, slug?, clickId?, reason?, recorded? } — reason: not_found | expired | not_live (scheduled, before go-live) | password_protected | long_link (an old page.link long link: read its link= in the app). clickId (when matched) is the id of the tap this open recorded; send it with conversion events (/v1/event `clickId`).",
+            "description": "{ matched, longUrl?, linkId?, slug?, clickId?, reason?, recorded? } — reason: not_found | link_unavailable (blocked for abuse or an unsafe destination) | expired | not_live (scheduled, before go-live) | password_protected | long_link (an old page.link long link: read its link= in the app). clickId (when matched) is the id of the tap this open recorded; send it with conversion events (/v1/event `clickId`).",
             "content": {
               "application/json": {
                 "schema": {
@@ -3321,6 +4192,7 @@
                       "type": "string",
                       "enum": [
                         "not_found",
+                        "link_unavailable",
                         "expired",
                         "not_live",
                         "password_protected",
@@ -3349,6 +4221,96 @@
           },
           "401": {
             "description": "Missing or invalid key"
+          }
+        }
+      }
+    },
+    "/v1/lookup": {
+      "post": {
+        "summary": "Where a short link goes, without recording anything (user opted out)",
+        "operationId": "lookupLink",
+        "tags": [
+          "SDK"
+        ],
+        "description": "Called by the Strait SDKs instead of /v1/resolve when the app's user has opted out (`setEnabled(false)`), so a short link that opens the app still lands on the right screen. Same lookup as /v1/resolve (scoped to the key's workspace, old Firebase host + code first), but nothing is recorded: no tap, no app open, no counter, no webhook, and no clickId comes back. Only `publishableKey` and `url` are read, and Strait's code writes no IP address or user agent for this call (our hosting providers keep their usual short-lived request logs). An A/B link answers one variant at random. Rate limited per IP.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "publishableKey",
+                  "url"
+                ],
+                "properties": {
+                  "publishableKey": {
+                    "type": "string",
+                    "example": "st_pub_live_…"
+                  },
+                  "url": {
+                    "type": "string",
+                    "example": "https://hilltop.strait.link/summer"
+                  }
+                }
+              },
+              "example": {
+                "publishableKey": "st_pub_live_…",
+                "url": "https://hilltop.strait.link/summer"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{ matched, longUrl?, linkId?, slug?, reason? } — reason: not_found | link_unavailable (blocked for abuse or an unsafe destination) | expired | not_live (scheduled, before go-live) | password_protected | long_link (an old page.link long link: read its link= in the app).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "matched": {
+                      "type": "boolean"
+                    },
+                    "longUrl": {
+                      "type": "string"
+                    },
+                    "linkId": {
+                      "type": "string"
+                    },
+                    "slug": {
+                      "type": "string"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "enum": [
+                        "not_found",
+                        "link_unavailable",
+                        "expired",
+                        "not_live",
+                        "password_protected",
+                        "long_link"
+                      ]
+                    }
+                  }
+                },
+                "example": {
+                  "matched": true,
+                  "longUrl": "https://shop.example.com/sale/summer?utm_source=whatsapp&utm_campaign=summer-2026",
+                  "linkId": "lnk_5f0c2a8e-3b1d-4f6a-9c7e-2d8b1a0e4f63",
+                  "slug": "summer"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "url is not a short link"
+          },
+          "401": {
+            "description": "Missing or invalid key"
+          },
+          "429": {
+            "description": "Too many lookups from this IP; try again shortly"
           }
         }
       }
@@ -3446,12 +4408,14 @@
                   "appVersion": {
                     "type": "string",
                     "maxLength": 64,
-                    "description": "The app's version (1-64 printable ASCII characters); anything else is ignored. Optional."
+                    "example": "4.12.0",
+                    "description": "The app's own version (iOS CFBundleShortVersionString, Android versionName), kept on the open. 1-64 printable ASCII characters; anything else is ignored, never an error."
                   },
                   "sdkVersion": {
                     "type": "string",
                     "maxLength": 64,
-                    "description": "The SDK's version (1-64 printable ASCII characters); anything else is ignored. Optional."
+                    "example": "0.9.0",
+                    "description": "The Strait SDK version, kept on the open. Same rule as appVersion."
                   }
                 }
               },
@@ -5110,7 +6074,7 @@
                         "string",
                         "null"
                       ],
-                      "example": "HTTP 500 | timeout | unsafe_target"
+                      "example": "HTTP 500 | timeout | dns_failed | unsafe_target"
                     },
                     "durationMs": {
                       "type": "integer"
@@ -5436,7 +6400,7 @@
               "text/csv": {
                 "schema": {
                   "type": "string",
-                  "description": "taps columns: click_id, clicked_at, link_id, slug, source, platform, device_class, os_major, in_app_browser, channel, sent_to, campaign, variant, billable, opened_at, open_kind, open_route, app_state, is_new_user, opens, installed_at, install_matched, match_method. device_class: phone | tablet | desktop (iPadOS Safari sends a Mac user agent, so a browser tap from an iPad is desktop; app-link taps carry what the app reports). sent_to: app_or_store | app_or_website | store | website | app_store_page | in_app_browser_page | expired (a tap on an expired link: answered 410, billable=false) | store_sheet (an in-app store sheet, new, billable=false). channel: the tap URL utm_source, else the destination's utm_source, else the in-app browser (whatsapp, instagram…), else the referrer. events columns: created_at, name, value, currency, platform, link_id, slug, click_id, channel, campaign, variant."
+                  "description": "taps columns: click_id, clicked_at, link_id, slug, source, platform, device_class, os_major, in_app_browser, channel, sent_to, campaign, variant, billable, opened_at, open_kind, open_route, app_state, is_new_user, opens, installed_at, install_matched, match_method, app_version, sdk_version, utm_source, utm_medium, utm_campaign, utm_term, utm_content, country_code (the tap's UTM tags and country, recorded since 5 Nov 2026; new columns are only ever appended). device_class: phone | tablet | desktop (iPadOS Safari sends a Mac user agent, so a browser tap from an iPad is desktop; app-link taps carry what the app reports). sent_to: app_or_store | app_or_website | store | website | app_store_page | in_app_browser_page | expired (a tap on an expired link: answered 410, billable=false) | store_sheet (an in-app store sheet, new, billable=false). channel: the tap URL utm_source, else the destination's utm_source, else the in-app browser (whatsapp, instagram…), else the referrer. events columns: created_at, name, value, currency, platform, link_id, slug, click_id, channel, campaign, variant."
                 }
               },
               "application/json": {
