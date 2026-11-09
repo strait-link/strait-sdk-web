@@ -99,8 +99,9 @@ export function isEnabled(): boolean {
 }
 
 /**
- * Call once on first launch. Asks the Strait engine whether this device
- * recently clicked one of your links, and returns the deferred deep link.
+ * Call once on first launch. Asks the Strait engine for a deferred deep link saved for this
+ * device. Today Strait saves one only on the iPhone tap page (app installs), so a website gets
+ * `matched: false`; use `reportWebOpen` to credit a landing to its tap.
  *
  * Idempotent per browser: the lookup succeeds at most once (a 2xx reply writes an
  * install row server-side, so repeat calls would inflate the install count). A

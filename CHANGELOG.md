@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.2 (9 Nov 2026)
+
+- Docs (README, `resolveDeferredLink` doc comment): no longer promises `matched: true` to a browser that "tapped one of your
+  links shortly before". Strait saves the device details a deferred match needs only on the iPhone tap page (the Get the app
+  step, for app installs), never for a tap sent to a website, so a website gets `matched: false` (`no_candidate`). To credit a
+  website visit to its tap, use `reportWebOpen`. No behaviour change.
+
 ## 0.8.1 (8 Nov 2026)
 
 - README: starts with a guided setup section (no `strait init` for this platform yet: a website needs no generated files, or the Strait MCP `get_started` prompt), before the manual quick start.
