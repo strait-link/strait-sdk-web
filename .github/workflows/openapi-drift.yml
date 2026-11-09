@@ -3,7 +3,7 @@ name: OpenAPI drift
 # MatchResult)? Any difference fails this run; test/openapi-contract.test.ts checks the SDK against the pin.
 on:
   schedule:
-    - cron: '30 3 * * *'
+    - cron: '41 3 * * *'   # odd minute: GitHub drops/delays :00 and :30 runs (strait ops/run-1109). Read-only, safe to repeat
   workflow_dispatch:
 permissions:
   contents: read
