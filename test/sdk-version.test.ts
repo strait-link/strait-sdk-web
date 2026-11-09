@@ -26,17 +26,20 @@ function engine() {
 const cfg = (fetch: typeof globalThis.fetch) => ({ publishableKey: 'st_pub_test_x', endpoint: 'https://acme.strait.link', device, fetch });
 
 describe('sdkVersion on recording calls', () => {
-  it('SDK_VERSION is the package.json version', () => {
+  it('SDK_VERSION is the package.json version, a plain number', () => {
     expect(SDK_VERSION).toBe(pkg.version);
+    expect(SDK_VERSION).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
-  it('/v1/open carries sdkVersion and no appVersion; /v1/event carries neither', async () => {
+  // B25 (shared-spec ADR 0007 amendment): web names itself like every other SDK, so the engine's sdk_releases reads it
+  // as the web SDK only (a bare 0.8.x could be Flutter or React Native on a website). Same field, so older engines store it as sent.
+  it('/v1/open carries sdkVersion = web/<version> and no appVersion; /v1/event carries neither', async () => {
     const sdk = await load();
     const e = engine();
     await sdk.reportWebOpen(cfg(e.fetch), { url: landing });
     await sdk.trackEvent(cfg(e.fetch), 'purchase', { value: 5 });
     expect(e.calls.map((c) => c.path)).toEqual(['/v1/open', '/v1/event']);
-    expect(e.calls[0]!.body.sdkVersion).toBe(pkg.version);
+    expect(e.calls[0]!.body.sdkVersion).toBe(`web/${pkg.version}`);
     expect(e.calls[0]!.body).not.toHaveProperty('appVersion');
     expect(e.calls[1]!.body).not.toHaveProperty('sdkVersion');
     expect(e.calls[1]!.body).not.toHaveProperty('appVersion');

@@ -144,7 +144,7 @@ What to use instead:
 
 `reportWebOpen` sends your publishable key, the tap id from the URL and the page URL to `/v1/open`;
 `trackEvent` sends the event fields you pass to `/v1/event`. No device fields, no cookies, and the client
-never sees or sends an IP. `/v1/open` also carries this SDK's version (`sdkVersion`) so support can see which
+never sees or sends an IP. `/v1/open` also carries this SDK's version (`sdkVersion`, e.g. `web/0.8.4`) so support can see which
 version a visit used; no app version is sent from the web.
 
 ## User consent / opt-out

@@ -214,7 +214,7 @@ export async function reportWebOpen(config: StraitConfig, opts: { url?: string }
         clickId,
         matched: true,
         firstLaunch: false,
-        sdkVersion: SDK_VERSION,
+        sdkVersion: `web/${SDK_VERSION}`, // B25: names itself (shared-spec ADR 0007)
       }),
     });
     return { reported: res.ok, clickId };
