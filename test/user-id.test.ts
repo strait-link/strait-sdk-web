@@ -10,8 +10,8 @@ const v = JSON.parse(readFileSync(new URL('./conformance-vectors.json', import.m
 const node = (s: string) => createHash('sha256').update(s, 'utf8').digest('hex');
 
 describe('conformance vectors (B27)', () => {
-  it('vectors v14, USER_ID_MAX', () => {
-    expect(v.version).toBe(14);
+  it('vectors v15, USER_ID_MAX', () => {
+    expect(v.version).toBe(15);
     expect(USER_ID_MAX).toBe(v.constants.USER_ID_MAX);
   });
   it('the pinned openapi.json /v1/event takes userId (max USER_ID_MAX) and userIdHashed', () => {
@@ -92,12 +92,13 @@ describe('setUserId (B27)', () => {
     expect(JSON.stringify(store)).not.toMatch(/priya|user_|[0-9a-f]{64}/i); // memory only
   });
 
-  it('a phone number is sent as the hash of its digits', async () => {
+  it('a phone number is sent as the hash of + and its digits (v15), never raw', async () => {
     const sdk = await load();
     const e = engine();
-    sdk.setUserId('+91 98765-43210');
+    sdk.setUserId('(+91)\u00a098765\u201343210');
     await sdk.trackEvent(cfg(e.fetch), 'purchase');
-    expect(e.calls[0]!.body).toMatchObject({ userId: node('919876543210'), userIdHashed: true });
+    expect(e.calls[0]!.body).toMatchObject({ userId: node('+919876543210'), userIdHashed: true });
+    expect(JSON.stringify(e.calls[0]!.body)).not.toMatch(/98765/);
   });
 
   it('the id when trackEvent is called is the one sent', async () => {

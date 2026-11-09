@@ -1,6 +1,6 @@
 {
   "name": "@straitlink/web",
-  "version": "0.8.5",
+  "version": "0.8.6",
   "description": "Deep linking for the web: count link opens on your site, join conversions to the tap, and a smart app banner.",
   "keywords": [
     "deep-linking",
