@@ -35,6 +35,9 @@ if (result.matched && result.longUrl) {
 It runs at most once per browser and never throws (on error: `{ matched: false, matchMethod: 'none' }`), so it is
 safe to await at startup. For conversion events use `trackEvent(config, 'purchase', { value, currency, eventId })`:
 it attaches the tap id for you (don't hand-write `POST /v1/event`).
+Your user: `setUserId(user.id)` after sign-in and on every page load while signed in (memory only),
+`setUserId(null)` on sign-out; later events carry it to the `app.event` webhook (emails and phone numbers are
+hashed in the browser, contract B27).
 
 ## Smart app banner (optional)
 

@@ -5296,7 +5296,7 @@
         "tags": [
           "Events"
         ],
-        "description": "From an app or website send `publishableKey`; from a server you may instead authenticate with the secret key as a Bearer token. `clickId` names the tap the conversion came from: every tap gets a unique id (a UUID, sent with the tap's redirect and passed to your app with the open), which the mobile SDKs remember from the attributed app open and attach for 7 days. It is kept only when it is a tap of this workspace; otherwise it is ignored and the event is still recorded. Each new event (not an eventId retry) is sent to your webhooks subscribed to `app.event`, with `data` and `sentWith` (publishable_key or secret_key: trust revenue sent from your server). Webhook sends for events sent with the publishable key are capped per workspace (600 burst, then 10 a second): past that, they are still recorded but not sent. Events sent with the secret key are not capped.",
+        "description": "From an app or website send `publishableKey`; from a server you may instead authenticate with the secret key as a Bearer token. `clickId` names the tap the conversion came from: every tap gets a unique id (a UUID, sent with the tap's redirect and passed to your app with the open), which the mobile SDKs remember from the attributed app open and attach for 7 days. It is kept only when it is a tap of this workspace; otherwise it is ignored and the event is still recorded. Each new event (not an eventId retry) is sent to your webhooks subscribed to `app.event`, with `data` and `sentWith` (publishable_key or secret_key: trust revenue sent from your server) and `userId` / `userIdHashed` (your user, when set). Webhook sends for events sent with the publishable key are capped per workspace (600 burst, then 10 a second): past that, they are still recorded but not sent. Events sent with the secret key are not capped.",
         "requestBody": {
           "required": true,
           "content": {
@@ -5371,6 +5371,16 @@
                       "orderId": "ord_1001"
                     },
                     "description": "Optional custom key-values (at most 20, 2 KB as JSON) passed to the app.event webhook. Not stored with the event; kept 30 days with the webhook delivery. Do not send personal data your receiver does not need."
+                  },
+                  "userId": {
+                    "type": "string",
+                    "maxLength": 128,
+                    "example": "user_4821",
+                    "description": "Optional: your own user id (the SDKs' setUserId), passed to the app.event webhook as `userId` so you can join events to your users. Not stored with the event; kept 30 days with the webhook delivery. An email (any `@`) or phone number (only digits, spaces and + ( ) . -, 8-15 digits) is replaced by its SHA-256 hex (of the lower-cased email / of the digits) and sent with `userIdHashed: true`; the SDKs do this on the device. Trimmed; empty, longer than 128 characters or with control characters = dropped (the event is still recorded)."
+                  },
+                  "userIdHashed": {
+                    "type": "boolean",
+                    "description": "True when `userId` is already a SHA-256 hex of an email or phone (the SDKs set it)."
                   }
                 }
               },

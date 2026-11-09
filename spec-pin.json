@@ -1,5 +1,5 @@
 {
-  "specCommit": "0cf973d",
+  "specCommit": "595c96e",
   "files": {
     "signature": {
       "path": "test/signature-vectors.json",
@@ -7,8 +7,8 @@
     },
     "conformance": {
       "path": "test/conformance-vectors.json",
-      "sha256": "4a5db8761af59bb0cb77798d396a4385fbe69374b97458103c2d9f6442f6a20a"
+      "sha256": "f12d8247329fc84c3ff83ac5482b169c381f671682f24c7256d7549d6617a29e"
     }
   },
-  "note": "the web SDK carries the conformance vectors only (contract B19 table); its device fields follow the tap page (B17 exemption)"
+  "note": "the web SDK carries the conformance vectors and runs only the userId group (B27, test/user-id.test.ts); the rest is the contract B19 table, its device fields follow the tap page (B17 exemption)"
 }
