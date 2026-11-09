@@ -1,4 +1,4 @@
-import { collectDevice, type DeviceFields } from './device.js';
+import type { DeviceFields } from './device.js';
 import { SDK_VERSION } from './version.js';
 
 export type { DeviceFields } from './device.js';
@@ -17,7 +17,7 @@ export interface StraitConfig {
    * (plain http only for localhost, 127.0.0.1 and ::1); otherwise no request is sent.
    */
   endpoint: string;
-  /** Override device collection (tests / non-browser hosts). */
+  /** @deprecated Only `resolveDeferredLink` read it (not available on the web); ignored, removed in 0.9.0. */
   device?: DeviceFields;
   /** Override fetch (tests). */
   fetch?: typeof fetch;
@@ -48,6 +48,11 @@ export interface MatchResult {
    * `{ method: 'fingerprint', confidence: 'probable' }` (engine ADR 0081). Absent otherwise.
    */
   match?: MatchInfo;
+  /**
+   * Set by this SDK, not the API: `'not_available_on_web'` from the deprecated `resolveDeferredLink`
+   * (a website can't get a deferred match; ADR 0003).
+   */
+  reason?: 'not_available_on_web';
 }
 
 /** How the engine matched a deferred link and how sure it is (engine ADR 0081). */
@@ -60,12 +65,14 @@ export interface MatchInfo {
 /** A referral code as the engine accepts it: 1–64 letters, digits, - or _ (contract B21, proposal). */
 const REFERRAL_CODE = /^[A-Za-z0-9_-]{1,64}$/;
 
-/** The referral code in a matched reply, kept exactly as sent, or null when absent or not a valid code. */
+/**
+ * The referral code in a matched reply, kept exactly as sent, or null when absent or not a valid code.
+ * @deprecated Only `resolveDeferredLink`'s reply used it (not available on the web); removed in 0.9.0.
+ */
 export function replyReferralCode(reply: unknown): string | null {
   return typeof reply === 'string' && REFERRAL_CODE.test(reply) ? reply : null;
 }
 
-const DONE_KEY = 'strait_match_done';
 const ENABLED_KEY = 'strait.enabled';
 /** The tap this browser last came from, for trackEvent (ADR 0002; same key and shape as React Native). */
 const TAP_KEY = 'strait.lastTap';
@@ -73,8 +80,8 @@ const TAP_KEY = 'strait.lastTap';
 let enabledHere = true;
 
 /**
- * Opt-out switch for consent flows (default on). Off: `resolveDeferredLink`, `reportWebOpen` and `trackEvent`
- * send nothing (the deferred check stays due, so it runs once you switch back on) and the remembered tap is deleted. Kept in `localStorage`
+ * Opt-out switch for consent flows (default on). Off: `reportWebOpen` and `trackEvent` send nothing and the
+ * remembered tap is deleted. Kept in `localStorage`
  * as `strait.enabled` across visits. The banner makes no requests and is not affected.
  */
 export function setEnabled(enabled: boolean): void {
@@ -98,73 +105,31 @@ export function isEnabled(): boolean {
   return enabledHere;
 }
 
+/** The answer of the deprecated `resolveDeferredLink`: a website can't get a deferred match. */
+const NOT_ON_WEB = 'Strait: resolveDeferredLink is deprecated and not available on the web, so it sends nothing and returns matched: false. ' +
+  'Strait saves the details a deferred match needs only on the iPhone tap page (for app installs), never for a tap sent to a website. ' +
+  'A Strait link already opens the right page of your site: route on the URL, and call reportWebOpen on page load to credit the visit to its tap. ' +
+  'resolveDeferredLink will be removed in 0.9.0.';
+let warnedNotOnWeb = false;
+
 /**
- * Call once on first launch. Asks the Strait engine for a deferred deep link saved for this
- * device. Today Strait saves one only on the iPhone tap page (app installs), so a website gets
- * `matched: false`; use `reportWebOpen` to credit a landing to its tap.
+ * @deprecated Not available on the web; removed in 0.9.0. Strait saves the details a deferred match needs
+ * only on the iPhone tap page (for app installs), never for a tap sent to a website, so a website can never
+ * match. It sends no request and always resolves to
+ * `{ matched: false, matchMethod: 'none', reason: 'not_available_on_web' }`, with one console warning per page.
  *
- * Idempotent per browser: the lookup succeeds at most once (a 2xx reply writes an
- * install row server-side, so repeat calls would inflate the install count). A
- * network error or non-2xx reply leaves it open for the next visit. Pass
- * `force: true` only in tests.
+ * Use instead: a Strait link already opens the right page of your site (route on its URL), and
+ * `reportWebOpen` on page load credits that visit to its tap, so `trackEvent` attaches it. Never throws.
  */
 export async function resolveDeferredLink(
-  config: StraitConfig,
-  opts: { force?: boolean } = {},
+  _config: StraitConfig,
+  _opts: { force?: boolean } = {},
 ): Promise<MatchResult> {
-  const none: MatchResult = { matched: false, matchMethod: 'none' };
-
-  if (!isEnabled() || (!opts.force && alreadyRan())) return none;
-  if (!isSafeEndpoint(config.endpoint)) {
-    // Never throws (like every other failure here), but say why: over plain http anyone on the
-    // network could rewrite the deferred link the app is about to open.
-    console.warn(
-      `Strait: endpoint must use https:// (got "${config.endpoint}"); plain http is only allowed for localhost, 127.0.0.1 and ::1. Skipping the deferred-link check.`,
-    );
-    return none;
+  if (!warnedNotOnWeb) {
+    warnedNotOnWeb = true;
+    console.warn(NOT_ON_WEB);
   }
-
-  const device = config.device ?? collectDevice();
-  const doFetch = config.fetch ?? globalThis.fetch;
-
-  try {
-    const res = await doFetch(`${trimSlash(config.endpoint)}/v1/match`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ publishableKey: config.publishableKey, platform: 'web', ...device, sdkVersion: SDK_VERSION }),
-    });
-    // A non-2xx (503 cold start, 429, ...) is not an answer: leave the check open so the next visit retries.
-    if (!res.ok) return none;
-    markRan();
-    const json = (await res.json()) as MatchResult;
-    const code = json.matched === true ? replyReferralCode(json.referralCode) : null;
-    if (code) json.referralCode = code;
-    else delete json.referralCode;
-    const m = json.match as { method?: unknown; confidence?: unknown } | null | undefined;
-    if (json.matched === true && m && typeof m.method === 'string' && typeof m.confidence === 'string') {
-      json.match = { method: m.method, confidence: m.confidence } as MatchInfo;
-    } else delete json.match;
-    if (json.matched === true && typeof json.clickId === 'string') rememberTap(json.clickId);
-    return json;
-  } catch {
-    return none;
-  }
-}
-
-function alreadyRan(): boolean {
-  try {
-    return globalThis.localStorage?.getItem(DONE_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function markRan(): void {
-  try {
-    globalThis.localStorage?.setItem(DONE_KEY, '1');
-  } catch {
-    /* ignore (private mode / no storage) */
-  }
+  return { matched: false, matchMethod: 'none', reason: 'not_available_on_web' };
 }
 
 /** Hosts where plain http is allowed (local development only). Same rule as the Node SDK. */
@@ -315,8 +280,8 @@ function eventError(name: unknown, x: TrackEventExtra & { eventId?: unknown }): 
 
 /**
  * Conversion / revenue event (`POST /v1/event`), e.g. `trackEvent(config, 'purchase', { value: 499, currency: 'INR' })`.
- * Resolves true when the engine accepted it. Carries the tap this browser last came from (`reportWebOpen` or a
- * matched `resolveDeferredLink`, ≤ 7 days) unless you pass `clickId`. Pass your order id as `eventId`: the engine
+ * Resolves true when the engine accepted it. Carries the tap this browser last came from (`reportWebOpen`,
+ * ≤ 7 days) unless you pass `clickId`. Pass your order id as `eventId`: the engine
  * stores each eventId once. Sends nothing while `setEnabled(false)`, or when the engine would refuse the input
  * (a console warning says why). Never throws.
  */
@@ -355,5 +320,5 @@ export async function trackEvent(config: StraitConfig, name: string, extra?: Tra
   }
 }
 
-/** Namespace form: `Strait.banner({...})`, `Strait.resolveDeferredLink({...})`, `Strait.reportWebOpen({...})`, `Strait.trackEvent({...}, 'purchase')`, `Strait.setEnabled(false)`. */
+/** Namespace form: `Strait.banner({...})`, `Strait.reportWebOpen({...})`, `Strait.trackEvent({...}, 'purchase')`, `Strait.setEnabled(false)`. */
 export const Strait = { banner, resolveDeferredLink, reportWebOpen, trackEvent, setEnabled, isEnabled };
