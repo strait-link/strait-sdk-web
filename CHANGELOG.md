@@ -5,7 +5,8 @@
 - `/v1/open` now sends `sdkVersion` as `web/0.8.4` instead of a bare `0.8.4` (contract B25, shared-spec ADR 0007),
   the same `<sdk>/<version>` form every other Strait SDK sends since today, so the dashboard's "older SDK" notice and
   support can tell a web visit from an app on the same version number. Same field; the `SDK_VERSION` export stays the
-  plain number. No other change.
+  plain number. Analytics grouped by SDK version show web visits as `web/0.8.4` from this release (`0.8.3` before).
+  No other change.
 
 ## 0.8.3 (9 Nov 2026)
 
