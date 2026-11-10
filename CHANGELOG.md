@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.8.6 (10 Nov 2026)
+
+- `setUserId` hashes more ways of writing a phone number, so none leaves the page raw (contract B27 v15, shared-spec
+  ADR 0010): `(+91) 98765 43210`, `00 91 …`, no-break spaces, invisible direction marks, Unicode dashes and the
+  minus sign, `/`, `tel:` links, full-width digits and Indian / Arabic digits. An id with `＠` is hashed like one
+  with `@`. **The hashed form of a phone now keeps its `+`:** `+91 98765 43210` and `0091 98765 43210` are sent as
+  `sha256("+919876543210")` (E.164, as most apps store it); `98765 43210` stays `sha256("9876543210")`.
+  Conformance vectors v15.
+
 ## 0.8.5 (10 Nov 2026)
 
 - `setUserId(id)` (also `Strait.setUserId`; contract B27, shared-spec ADR 0009, ADR 0004): call it after your
