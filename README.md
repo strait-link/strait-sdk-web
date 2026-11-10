@@ -139,7 +139,7 @@ example where your app reads its session). It is never logged, ignored while `se
 also clears it), and not sent with `reportWebOpen`.
 
 Emails and phone numbers never leave the page raw: an id with `@` is sent as the SHA-256 hex of its
-lower-cased form; a phone number (8-15 digits with any spaces, dashes, dots, brackets or slashes, an optional
+lower-cased form (letter by letter: `İ` → `i̇`, `Σ` → `σ`; ADR 0011); a phone number (8-15 digits with any spaces, dashes, dots, brackets or slashes, an optional
 `+`, `00` or `tel:`; Indian, Arabic and full-width digits too) as the SHA-256 hex of `+` and its digits when
 written with `+` or `00`, else of its digits, with `userIdHashed: true` (hashed in the browser, synchronously,
 also on plain-http pages; shared-spec ADR 0010). To join, hash your own value the same way
@@ -170,7 +170,7 @@ What to use instead:
 
 `reportWebOpen` sends your publishable key, the tap id from the URL and the page URL to `/v1/open`;
 `trackEvent` sends the event fields you pass to `/v1/event`. No device fields, no cookies, and the client
-never sees or sends an IP. `/v1/open` also carries this SDK's version (`sdkVersion`, e.g. `web/0.8.6`) so support can see which
+never sees or sends an IP. `/v1/open` also carries this SDK's version (`sdkVersion`, e.g. `web/0.8.7`) so support can see which
 version a visit used; no app version is sent from the web.
 
 ## User consent / opt-out
