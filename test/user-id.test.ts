@@ -10,8 +10,8 @@ const v = JSON.parse(readFileSync(new URL('./conformance-vectors.json', import.m
 const node = (s: string) => createHash('sha256').update(s, 'utf8').digest('hex');
 
 describe('conformance vectors (B27)', () => {
-  it('vectors v15, USER_ID_MAX', () => {
-    expect(v.version).toBe(15);
+  it('vectors v16, USER_ID_MAX', () => {
+    expect(v.version).toBe(16);
     expect(USER_ID_MAX).toBe(v.constants.USER_ID_MAX);
   });
   it('the pinned openapi.json /v1/event takes userId (max USER_ID_MAX) and userIdHashed', () => {
